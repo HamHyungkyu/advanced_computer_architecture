@@ -11,39 +11,47 @@
 #include "abstract_hardware_model.h"
 #include "gpgpu-sim/shader.h"
 
-enum command_type {
+enum command_type
+{
   kernel_launch = 1,
   cpu_gpu_mem_copy,
   gpu_cpu_mem_copy,
 };
 
-struct trace_command {
+struct trace_command
+{
   std::string command_string;
   command_type m_type;
 };
 
-class trace_function_info : public function_info {
+class trace_function_info : public function_info
+{
 public:
   trace_function_info(const struct gpgpu_ptx_sim_info &info,
                       gpgpu_context *m_gpgpu_context)
-      : function_info(0, m_gpgpu_context) {
+      : function_info(0, m_gpgpu_context)
+  {
     m_kernel_info = info;
   }
 
-  virtual const struct gpgpu_ptx_sim_info *get_kernel_info() const {
+  virtual const struct gpgpu_ptx_sim_info *get_kernel_info() const
+  {
     return &m_kernel_info;
   }
 
-  virtual const void set_kernel_info(const struct gpgpu_ptx_sim_info &info) {
+  virtual const void set_kernel_info(const struct gpgpu_ptx_sim_info &info)
+  {
     m_kernel_info = info;
   }
 
   virtual ~trace_function_info() {}
 };
 
-class trace_warp_inst_t : public warp_inst_t {
+class trace_warp_inst_t : public warp_inst_t
+{
 public:
-  trace_warp_inst_t() {
+  trace_warp_inst_t()
+  {
     m_gpgpu_context = NULL;
     m_opcode = 0;
     m_tconfig = NULL;
@@ -52,7 +60,8 @@ public:
 
   trace_warp_inst_t(const class core_config *config,
                     gpgpu_context *gpgpu_context, class trace_config *tconfig)
-      : warp_inst_t(config) {
+      : warp_inst_t(config)
+  {
     m_gpgpu_context = gpgpu_context;
     m_opcode = 0;
     m_tconfig = tconfig;
@@ -72,7 +81,8 @@ private:
   unsigned get_datawidth_from_opcode(const std::vector<std::string> &opcode);
 };
 
-class trace_kernel_info_t : public kernel_info_t {
+class trace_kernel_info_t : public kernel_info_t
+{
 public:
   trace_kernel_info_t(dim3 gridDim, dim3 blockDim, unsigned m_binary_verion,
                       trace_function_info *m_function_info,
@@ -91,7 +101,8 @@ private:
   const std::unordered_map<std::string, OpcodeChar> *OpcodeMap;
 };
 
-class trace_config {
+class trace_config
+{
 public:
   trace_config();
 
@@ -99,7 +110,8 @@ public:
                    unsigned &initiation_interval);
   void parse_config();
   void reg_options(option_parser_t opp);
-  char *get_traces_filename() { return g_traces_filename; }
+  void get_traces_filename(std::string *, int gpu_num);
+  int get_number_of_gpus() { return num_gpus; }
 
 private:
   unsigned int_latency, fp_latency, dp_latency, sfu_latency, tensor_latency;
@@ -108,6 +120,7 @@ private:
   unsigned specialized_unit_initiation[SPECIALIZED_UNIT_NUM];
 
   char *g_traces_filename;
+  int num_gpus;
   char *trace_opcode_latency_initiation_int;
   char *trace_opcode_latency_initiation_sp;
   char *trace_opcode_latency_initiation_dp;
@@ -116,7 +129,8 @@ private:
   char *trace_opcode_latency_initiation_specialized_op[SPECIALIZED_UNIT_NUM];
 };
 
-class trace_parser {
+class trace_parser
+{
 public:
   trace_parser(const char *kernellist_filepath, gpgpu_sim *m_gpgpu_sim,
                gpgpu_context *m_gpgpu_context);
@@ -137,10 +151,12 @@ private:
   gpgpu_context *m_gpgpu_context;
 };
 
-class trace_shd_warp_t : public shd_warp_t {
+class trace_shd_warp_t : public shd_warp_t
+{
 public:
   trace_shd_warp_t(class shader_core_ctx *shader, unsigned warp_size)
-      : shd_warp_t(shader, warp_size) {
+      : shd_warp_t(shader, warp_size)
+  {
     trace_pc = 0;
   }
 
@@ -155,31 +171,36 @@ private:
   unsigned trace_pc;
 };
 
-class trace_gpgpu_sim : public gpgpu_sim {
+class trace_gpgpu_sim : public gpgpu_sim
+{
 public:
   trace_gpgpu_sim(const gpgpu_sim_config &config, gpgpu_context *ctx)
-      : gpgpu_sim(config, ctx) {
+      : gpgpu_sim(config, ctx)
+  {
     createSIMTCluster();
   }
 
   virtual void createSIMTCluster();
 };
 
-class trace_simt_core_cluster : public simt_core_cluster {
+class trace_simt_core_cluster : public simt_core_cluster
+{
 public:
   trace_simt_core_cluster(class gpgpu_sim *gpu, unsigned cluster_id,
                           const shader_core_config *config,
                           const memory_config *mem_config,
                           class shader_core_stats *stats,
                           class memory_stats_t *mstats)
-      : simt_core_cluster(gpu, cluster_id, config, mem_config, stats, mstats) {
+      : simt_core_cluster(gpu, cluster_id, config, mem_config, stats, mstats)
+  {
     create_shader_core_ctx();
   }
 
   virtual void create_shader_core_ctx();
 };
 
-class trace_shader_core_ctx : public shader_core_ctx {
+class trace_shader_core_ctx : public shader_core_ctx
+{
 public:
   trace_shader_core_ctx(class gpgpu_sim *gpu, class simt_core_cluster *cluster,
                         unsigned shader_id, unsigned tpc_id,
@@ -187,7 +208,8 @@ public:
                         const memory_config *mem_config,
                         shader_core_stats *stats)
       : shader_core_ctx(gpu, cluster, shader_id, tpc_id, config, mem_config,
-                        stats) {
+                        stats)
+  {
     create_front_pipeline();
     create_shd_warp();
     create_schedulers();

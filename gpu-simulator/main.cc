@@ -46,7 +46,8 @@ gpgpu_sim *gpgpu_trace_sim_init_perf_model(int argc, const char *argv[],
                                            gpgpu_context *m_gpgpu_context,
                                            class trace_config *m_config);
 
-int main(int argc, const char **argv) {
+int main(int argc, const char **argv)
+{
   gpgpu_context *m_gpgpu_context = new gpgpu_context();
   trace_config tconfig;
 
@@ -60,44 +61,54 @@ int main(int argc, const char **argv) {
   // launch
   // while loop till the end of the end kernel execution
   // prints stats
-
-  trace_parser tracer(tconfig.get_traces_filename(), m_gpgpu_sim,
+  std::string file_name;
+  tconfig.get_traces_filename(&file_name, 0);
+  trace_parser tracer(file_name.c_str(), m_gpgpu_sim,
                       m_gpgpu_context);
   tconfig.parse_config();
 
   std::vector<trace_command> commandlist = tracer.parse_commandlist_file();
 
-  for (unsigned i = 0; i < commandlist.size(); ++i) {
+  for (unsigned i = 0; i < commandlist.size(); ++i)
+  {
     trace_kernel_info_t *kernel_info = NULL;
-    if (commandlist[i].m_type == command_type::cpu_gpu_mem_copy) {
+    if (commandlist[i].m_type == command_type::cpu_gpu_mem_copy)
+    {
       size_t addre, Bcount;
       tracer.parse_memcpy_info(commandlist[i].command_string, addre, Bcount);
       std::cout << "launching memcpy command : " << commandlist[i].command_string << std::endl;
       m_gpgpu_sim->perf_memcpy_to_gpu(addre, Bcount);
       continue;
-    } else if (commandlist[i].m_type == command_type::kernel_launch) {
+    }
+    else if (commandlist[i].m_type == command_type::kernel_launch)
+    {
       kernel_info = tracer.parse_kernel_info(commandlist[i].command_string, &tconfig);
       std::cout << "launching kernel command : " << commandlist[i].command_string << std::endl;
       m_gpgpu_sim->launch(kernel_info);
     }
     else
-    	assert(0);
+      assert(0);
 
     bool active = false;
     bool sim_cycles = false;
     bool break_limit = false;
 
-    do {
+    do
+    {
       if (!m_gpgpu_sim->active())
         break;
 
       // performance simulation
-      if (m_gpgpu_sim->active()) {
+      if (m_gpgpu_sim->active())
+      {
         m_gpgpu_sim->cycle();
         sim_cycles = true;
         m_gpgpu_sim->deadlock_check();
-      } else {
-        if (m_gpgpu_sim->cycle_insn_cta_max_hit()) {
+      }
+      else
+      {
+        if (m_gpgpu_sim->cycle_insn_cta_max_hit())
+        {
           m_gpgpu_context->the_gpgpusim->g_stream_manager
               ->stop_all_running_kernels();
           break_limit = true;
@@ -108,17 +119,20 @@ int main(int argc, const char **argv) {
 
     } while (active);
 
-    if (kernel_info) {
+    if (kernel_info)
+    {
       tracer.kernel_finalizer(kernel_info);
       m_gpgpu_sim->print_stats();
     }
 
-    if (sim_cycles) {
+    if (sim_cycles)
+    {
       m_gpgpu_sim->update_stats();
       m_gpgpu_context->print_simulation_time();
     }
 
-    if (break_limit) {
+    if (break_limit)
+    {
       printf("GPGPU-Sim: ** break due to reaching the maximum cycles (or "
              "instructions) **\n");
       fflush(stdout);
@@ -136,7 +150,8 @@ int main(int argc, const char **argv) {
 
 gpgpu_sim *gpgpu_trace_sim_init_perf_model(int argc, const char *argv[],
                                            gpgpu_context *m_gpgpu_context,
-                                           trace_config *m_config) {
+                                           trace_config *m_config)
+{
   srand(1);
   print_splash();
 
