@@ -105,13 +105,12 @@ class trace_config
 {
 public:
   trace_config();
-
+  trace_config(int gpu_number, FILE *output_file_pointer);
   void set_latency(unsigned category, unsigned &latency,
                    unsigned &initiation_interval);
   void parse_config();
   void reg_options(option_parser_t opp);
-  void get_traces_filename(std::string *, int gpu_num);
-  int get_number_of_gpus() { return num_gpus; }
+  std::string get_traces_filename();
 
 private:
   unsigned int_latency, fp_latency, dp_latency, sfu_latency, tensor_latency;
@@ -120,7 +119,8 @@ private:
   unsigned specialized_unit_initiation[SPECIALIZED_UNIT_NUM];
 
   char *g_traces_filename;
-  int num_gpus;
+  int gpu_num;
+  FILE *output_file;
   char *trace_opcode_latency_initiation_int;
   char *trace_opcode_latency_initiation_sp;
   char *trace_opcode_latency_initiation_dp;

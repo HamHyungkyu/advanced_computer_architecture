@@ -683,13 +683,22 @@ bool trace_warp_inst_t::parse_from_string(
   return true;
 }
 
-trace_config::trace_config() {}
-
-void trace_config::get_traces_filename(std::string *file_name, int gpu_num)
+trace_config::trace_config()
 {
-  file_name->assign(this->g_traces_filename);
-  file_name->append("GPU_" + std::to_string(gpu_num) + "/kernelslist.g");
-  return;
+  gpu_num = 0;
+  output_file = stdout;
+}
+trace_config::trace_config(int gpu_number, FILE *output_file_pointer)
+{
+  gpu_num = gpu_number;
+  output_file = output_file_pointer;
+}
+std::string trace_config::get_traces_filename()
+{
+  std::string file_name;
+  file_name.assign(this->g_traces_filename);
+  file_name.append("GPU_" + std::to_string(gpu_num) + "/kernelslist.g");
+  return file_name;
 }
 
 void trace_config::reg_options(option_parser_t opp)
@@ -698,10 +707,6 @@ void trace_config::reg_options(option_parser_t opp)
                          "traces kernel file"
                          "traces kernel file directory",
                          "./traces/kernelslist.g");
-  option_parser_register(opp, "-num_gpus", OPT_INT32, &num_gpus,
-                         "traces kernel file"
-                         "traces kernel file directory",
-                         "1");
   option_parser_register(opp, "-trace_opcode_latency_initiation_int", OPT_CSTR,
                          &trace_opcode_latency_initiation_int,
                          "Opcode latencies and initiation for integers in "

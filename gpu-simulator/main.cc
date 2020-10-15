@@ -44,25 +44,47 @@
 
 gpgpu_sim *gpgpu_trace_sim_init_perf_model(int argc, const char *argv[],
                                            gpgpu_context *m_gpgpu_context,
-                                           class trace_config *m_config);
-
+                                           class trace_config *m_config, int num_gpu);
+int parse_num_gpus(option_parser_t opp);
+int do_gpu_perf(int gpu_num, trace_config tconfig, gpgpu_context *m_gpgpu_context, gpgpu_sim *m_gpgpu_sim);
 int main(int argc, const char **argv)
 {
   gpgpu_context *m_gpgpu_context = new gpgpu_context();
-  trace_config tconfig;
-
+  option_parser_t opp = option_parser_create();
+  int num_gpus = parse_num_gpus(opp);
+  trace_config tconfig(0, stdout);
   gpgpu_sim *m_gpgpu_sim =
-      gpgpu_trace_sim_init_perf_model(argc, argv, m_gpgpu_context, &tconfig);
+      gpgpu_trace_sim_init_perf_model(argc, argv, m_gpgpu_context, &tconfig, 0);
   m_gpgpu_sim->init();
+  do_gpu_perf(0, tconfig, m_gpgpu_context, m_gpgpu_sim);
+  // we print this message to inform the gpgpu-simulation stats_collect script
+  // that we are done
+  printf("GPGPU-Sim: *** simulation thread exiting ***\n");
+  printf("GPGPU-Sim: *** exit detected ***\n");
 
+  return 1;
+}
+
+int parse_num_gpus(option_parser_t opp)
+{
+  int num_gpus;
+  option_parser_register(opp, "-num_gpus", OPT_INT32, &num_gpus,
+                         "traces kernel file"
+                         "traces kernel file directory",
+                         "1");
+
+  return num_gpus;
+}
+
+int do_gpu_perf(int gpu_num, trace_config tconfig, gpgpu_context *m_gpgpu_context, gpgpu_sim *m_gpgpu_sim)
+{
   // for each kernel
   // load file
   // parse and create kernel info
   // launch
   // while loop till the end of the end kernel execution
   // prints stats
-  std::string file_name;
-  tconfig.get_traces_filename(&file_name, 0);
+  std::string file_name = tconfig.get_traces_filename();
   trace_parser tracer(file_name.c_str(), m_gpgpu_sim,
                       m_gpgpu_context);
   tconfig.parse_config();
@@ -139,22 +161,15 @@ int main(int argc, const char **argv)
       exit(1);
     }
   }
-
-  // we print this message to inform the gpgpu-simulation stats_collect script
-  // that we are done
-  printf("GPGPU-Sim: *** simulation thread exiting ***\n");
-  printf("GPGPU-Sim: *** exit detected ***\n");
-
-  return 1;
 }
 
 gpgpu_sim *gpgpu_trace_sim_init_perf_model(int argc, const char *argv[],
                                            gpgpu_context *m_gpgpu_context,
-                                           trace_config *m_config)
+                                           trace_config *m_config, int gpu_num)
 {
+  FILE *output_file = fopen("GPU0.out", "w");
   srand(1);
   print_splash();
-
   option_parser_t opp = option_parser_create();
 
   m_gpgpu_context->ptx_reg_options(opp);
@@ -163,11 +178,10 @@ gpgpu_sim *gpgpu_trace_sim_init_perf_model(int argc, const char *argv[],
   icnt_reg_options(opp);
 
   m_gpgpu_context->the_gpgpusim->g_the_gpu_config =
-      new gpgpu_sim_config(m_gpgpu_context);
+      new gpgpu_sim_config(m_gpgpu_context, gpu_num, output_file);
   m_gpgpu_context->the_gpgpusim->g_the_gpu_config->reg_options(
       opp); // register GPU microrachitecture options
   m_config->reg_options(opp);
-
   option_parser_cmdline(opp, argc, argv); // parse configuration options
   fprintf(stdout, "GPGPU-Sim: Configuration options:\n\n");
   option_parser_print(opp, stdout);
