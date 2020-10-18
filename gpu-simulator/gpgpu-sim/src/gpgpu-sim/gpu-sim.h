@@ -577,6 +577,8 @@ public:
   void decrement_kernel_latency();
 
   const gpgpu_sim_config &get_config() const { return m_config; }
+  int get_gpu_num() const { return m_config.gpu_num; }
+
   void gpu_print_stat();
   void dump_pipeline(int mask, int s, int m) const;
 

@@ -31,6 +31,7 @@
 #include "../intersim2/globals.hpp"
 #include "../intersim2/interconnect_interface.hpp"
 #include "local_interconnect.h"
+#define MAX_GPUS 8
 
 icnt_create_p icnt_create;
 icnt_init_p icnt_init;
@@ -45,98 +46,158 @@ icnt_display_state_p icnt_display_state;
 icnt_get_flit_size_p icnt_get_flit_size;
 
 unsigned g_network_mode;
-char* g_network_config_filename;
+char *g_network_config_filename;
 
 struct inct_config g_inct_config;
-LocalInterconnect* g_localicnt_interface;
+LocalInterconnect *g_localicnt_interface[MAX_GPUS];
+InterconnectInterface *g_icnt_interfaces[MAX_GPUS];
 
 #include "../option_parser.h"
 
 // Wrapper to intersim2 to accompany old icnt_wrapper
 // TODO: use delegate/boost/c++11<funtion> instead
 
-static void intersim2_create(unsigned int n_shader, unsigned int n_mem) {
-  g_icnt_interface->CreateInterconnect(n_shader, n_mem);
+static void intersim2_create(int gpu_num, unsigned int n_shader, unsigned int n_mem)
+{
+  assert(gpu_num < MAX_GPUS);
+  g_icnt_interfaces[gpu_num]->CreateInterconnect(n_shader, n_mem);
 }
 
-static void intersim2_init() { g_icnt_interface->Init(); }
-
-static bool intersim2_has_buffer(unsigned input, unsigned int size) {
-  return g_icnt_interface->HasBuffer(input, size);
+static void intersim2_init(int gpu_num)
+{
+  assert(gpu_num < MAX_GPUS);
+  g_icnt_interfaces[gpu_num]->Init();
 }
 
-static void intersim2_push(unsigned input, unsigned output, void* data,
-                           unsigned int size) {
-  g_icnt_interface->Push(input, output, data, size);
+static bool intersim2_has_buffer(int gpu_num, unsigned input, unsigned int size)
+{
+  assert(gpu_num < MAX_GPUS);
+  return g_icnt_interfaces[gpu_num]->HasBuffer(input, size);
 }
 
-static void* intersim2_pop(unsigned output) {
-  return g_icnt_interface->Pop(output);
+static void intersim2_push(int gpu_num, unsigned input, unsigned output, void *data,
+                           unsigned int size)
+{
+  assert(gpu_num < MAX_GPUS);
+  g_icnt_interfaces[gpu_num]->Push(input, output, data, size);
 }
 
-static void intersim2_transfer() { g_icnt_interface->Advance(); }
-
-static bool intersim2_busy() { return g_icnt_interface->Busy(); }
-
-static void intersim2_display_stats() { g_icnt_interface->DisplayStats(); }
-
-static void intersim2_display_overall_stats() {
-  g_icnt_interface->DisplayOverallStats();
+static void *intersim2_pop(int gpu_num, unsigned output)
+{
+  assert(gpu_num < MAX_GPUS);
+  return g_icnt_interfaces[gpu_num]->Pop(output);
 }
 
-static void intersim2_display_state(FILE* fp) {
-  g_icnt_interface->DisplayState(fp);
+static void intersim2_transfer(int gpu_num)
+{
+  assert(gpu_num < MAX_GPUS);
+  g_icnt_interfaces[gpu_num]->Advance();
 }
 
-static unsigned intersim2_get_flit_size() {
-  return g_icnt_interface->GetFlitSize();
+static bool intersim2_busy(int gpu_num)
+{
+  assert(gpu_num < MAX_GPUS);
+  return g_icnt_interfaces[gpu_num]->Busy();
+}
+
+static void intersim2_display_stats(int gpu_num)
+{
+  assert(gpu_num < MAX_GPUS);
+  g_icnt_interfaces[gpu_num]->DisplayStats();
+}
+
+static void intersim2_display_overall_stats(int gpu_num)
+{
+  assert(gpu_num < MAX_GPUS);
+  g_icnt_interfaces[gpu_num]->DisplayOverallStats();
+}
+
+static void intersim2_display_state(int gpu_num, FILE *fp)
+{
+  assert(gpu_num < MAX_GPUS);
+  g_icnt_interfaces[gpu_num]->DisplayState(fp);
+}
+
+static unsigned intersim2_get_flit_size(int gpu_num)
+{
+  assert(gpu_num < MAX_GPUS);
+  return g_icnt_interfaces[gpu_num]->GetFlitSize();
 }
 
 //////////////////////////////////////////////////////
 
-static void LocalInterconnect_create(unsigned int n_shader,
-                                     unsigned int n_mem) {
-  g_localicnt_interface->CreateInterconnect(n_shader, n_mem);
+static void LocalInterconnect_create(int gpu_num, unsigned int n_shader,
+                                     unsigned int n_mem)
+{
+  assert(gpu_num < MAX_GPUS);
+  g_localicnt_interface[gpu_num]->CreateInterconnect(n_shader, n_mem);
 }
 
-static void LocalInterconnect_init() { g_localicnt_interface->Init(); }
-
-static bool LocalInterconnect_has_buffer(unsigned input, unsigned int size) {
-  return g_localicnt_interface->HasBuffer(input, size);
+static void LocalInterconnect_init(int gpu_num)
+{
+  assert(gpu_num < MAX_GPUS);
+  g_localicnt_interface[gpu_num]->Init();
 }
 
-static void LocalInterconnect_push(unsigned input, unsigned output, void* data,
-                                   unsigned int size) {
-  g_localicnt_interface->Push(input, output, data, size);
+static bool LocalInterconnect_has_buffer(int gpu_num, unsigned input, unsigned int size)
+{
+  assert(gpu_num < MAX_GPUS);
+  return g_localicnt_interface[gpu_num]->HasBuffer(input, size);
 }
 
-static void* LocalInterconnect_pop(unsigned output) {
-  return g_localicnt_interface->Pop(output);
+static void LocalInterconnect_push(int gpu_num, unsigned input, unsigned output, void *data,
+                                   unsigned int size)
+{
+  assert(gpu_num < MAX_GPUS);
+  g_localicnt_interface[gpu_num]->Push(input, output, data, size);
 }
 
-static void LocalInterconnect_transfer() { g_localicnt_interface->Advance(); }
-
-static bool LocalInterconnect_busy() { return g_localicnt_interface->Busy(); }
-
-static void LocalInterconnect_display_stats() {
-  g_localicnt_interface->DisplayStats();
+static void *LocalInterconnect_pop(int gpu_num, unsigned output)
+{
+  assert(gpu_num < MAX_GPUS);
+  return g_localicnt_interface[gpu_num]->Pop(output);
 }
 
-static void LocalInterconnect_display_overall_stats() {
-  g_localicnt_interface->DisplayOverallStats();
+static void LocalInterconnect_transfer(int gpu_num)
+{
+  assert(gpu_num < MAX_GPUS);
+  g_localicnt_interface[gpu_num]->Advance();
 }
 
-static void LocalInterconnect_display_state(FILE* fp) {
-  g_localicnt_interface->DisplayState(fp);
+static bool LocalInterconnect_busy(int gpu_num)
+{
+  assert(gpu_num < MAX_GPUS);
+  return g_localicnt_interface[gpu_num]->Busy();
 }
 
-static unsigned LocalInterconnect_get_flit_size() {
-  return g_localicnt_interface->GetFlitSize();
+static void LocalInterconnect_display_stats(int gpu_num)
+{
+  assert(gpu_num < MAX_GPUS);
+  g_localicnt_interface[gpu_num]->DisplayStats();
+}
+
+static void LocalInterconnect_display_overall_stats(int gpu_num)
+{
+  assert(gpu_num < MAX_GPUS);
+  g_localicnt_interface[gpu_num]->DisplayOverallStats();
+}
+
+static void LocalInterconnect_display_state(int gpu_num, FILE *fp)
+{
+  assert(gpu_num < MAX_GPUS);
+  g_localicnt_interface[gpu_num]->DisplayState(fp);
+}
+
+static unsigned LocalInterconnect_get_flit_size(int gpu_num)
+{
+  assert(gpu_num < MAX_GPUS);
+  return g_localicnt_interface[gpu_num]->GetFlitSize();
 }
 
 ///////////////////////////
 
-void icnt_reg_options(class OptionParser* opp) {
+void icnt_reg_options(class OptionParser *opp)
+{
   option_parser_register(opp, "-network_mode", OPT_INT32, &g_network_mode,
                          "Interconnection network mode", "1");
   option_parser_register(opp, "-inter_config_file", OPT_CSTR,
@@ -160,39 +221,42 @@ void icnt_reg_options(class OptionParser* opp) {
                          &g_inct_config.grant_cycles, "grant_cycles", "1");
 }
 
-void icnt_wrapper_init() {
-  switch (g_network_mode) {
-    case INTERSIM:
-      // FIXME: delete the object: may add icnt_done wrapper
-      g_icnt_interface = InterconnectInterface::New(g_network_config_filename);
-      icnt_create = intersim2_create;
-      icnt_init = intersim2_init;
-      icnt_has_buffer = intersim2_has_buffer;
-      icnt_push = intersim2_push;
-      icnt_pop = intersim2_pop;
-      icnt_transfer = intersim2_transfer;
-      icnt_busy = intersim2_busy;
-      icnt_display_stats = intersim2_display_stats;
-      icnt_display_overall_stats = intersim2_display_overall_stats;
-      icnt_display_state = intersim2_display_state;
-      icnt_get_flit_size = intersim2_get_flit_size;
-      break;
-    case LOCAL_XBAR:
-      g_localicnt_interface = LocalInterconnect::New(g_inct_config);
-      icnt_create = LocalInterconnect_create;
-      icnt_init = LocalInterconnect_init;
-      icnt_has_buffer = LocalInterconnect_has_buffer;
-      icnt_push = LocalInterconnect_push;
-      icnt_pop = LocalInterconnect_pop;
-      icnt_transfer = LocalInterconnect_transfer;
-      icnt_busy = LocalInterconnect_busy;
-      icnt_display_stats = LocalInterconnect_display_stats;
-      icnt_display_overall_stats = LocalInterconnect_display_overall_stats;
-      icnt_display_state = LocalInterconnect_display_state;
-      icnt_get_flit_size = LocalInterconnect_get_flit_size;
-      break;
-    default:
-      assert(0);
-      break;
+void icnt_wrapper_init(int gpu_num)
+{
+  assert(gpu_num < MAX_GPUS);
+  switch (g_network_mode)
+  {
+  case INTERSIM:
+    // FIXME: delete the object: may add icnt_done wrapper
+    g_icnt_interfaces[gpu_num] = InterconnectInterface::New(g_network_config_filename);
+    icnt_create = intersim2_create;
+    icnt_init = intersim2_init;
+    icnt_has_buffer = intersim2_has_buffer;
+    icnt_push = intersim2_push;
+    icnt_pop = intersim2_pop;
+    icnt_transfer = intersim2_transfer;
+    icnt_busy = intersim2_busy;
+    icnt_display_stats = intersim2_display_stats;
+    icnt_display_overall_stats = intersim2_display_overall_stats;
+    icnt_display_state = intersim2_display_state;
+    icnt_get_flit_size = intersim2_get_flit_size;
+    break;
+  case LOCAL_XBAR:
+    g_localicnt_interface[gpu_num] = LocalInterconnect::New(g_inct_config);
+    icnt_create = LocalInterconnect_create;
+    icnt_init = LocalInterconnect_init;
+    icnt_has_buffer = LocalInterconnect_has_buffer;
+    icnt_push = LocalInterconnect_push;
+    icnt_pop = LocalInterconnect_pop;
+    icnt_transfer = LocalInterconnect_transfer;
+    icnt_busy = LocalInterconnect_busy;
+    icnt_display_stats = LocalInterconnect_display_stats;
+    icnt_display_overall_stats = LocalInterconnect_display_overall_stats;
+    icnt_display_state = LocalInterconnect_display_state;
+    icnt_get_flit_size = LocalInterconnect_get_flit_size;
+    break;
+  default:
+    assert(0);
+    break;
   }
 }

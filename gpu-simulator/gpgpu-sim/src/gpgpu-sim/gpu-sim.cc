@@ -917,8 +917,8 @@ gpgpu_sim::gpgpu_sim(const gpgpu_sim_config &config, gpgpu_context *ctx)
     }
   }
 
-  icnt_wrapper_init();
-  icnt_create(m_shader_config->n_simt_clusters,
+  icnt_wrapper_init(m_config.gpu_num);
+  icnt_create(m_config.gpu_num, m_shader_config->n_simt_clusters,
               m_memory_config->m_n_mem_sub_partition);
 
   time_vector_create(NUM_MEM_REQ_STAT);
@@ -1045,7 +1045,7 @@ bool gpgpu_sim::active()
     if (m_memory_partition_unit[i]->busy() > 0)
       return true;
   ;
-  if (icnt_busy())
+  if (icnt_busy(this->get_gpu_num()))
     return true;
   if (get_more_cta_left())
     return true;
@@ -1092,7 +1092,7 @@ void gpgpu_sim::init()
   }
 
   if (g_network_mode)
-    icnt_init();
+    icnt_init(this->get_gpu_num());
 
     // McPAT initialization function. Called on first launch of GPU
 #ifdef GPGPUSIM_POWER_MODEL
@@ -1137,8 +1137,8 @@ void gpgpu_sim::print_stats()
     fprintf(output_file,
             "----------------------------Interconnect-DETAILS----------------------"
             "----------\n");
-    icnt_display_stats();
-    icnt_display_overall_stats();
+    icnt_display_stats(this->get_gpu_num());
+    icnt_display_overall_stats(this->get_gpu_num());
     fprintf(output_file,
             "----------------------------END-of-Interconnect-DETAILS---------------"
             "----------\n");
@@ -1188,10 +1188,10 @@ void gpgpu_sim::deadlock_check()
       if (busy)
         fprintf(output_file, "GPGPU-Sim uArch DEADLOCK:  memory partition %u busy\n", i);
     }
-    if (icnt_busy())
+    if (icnt_busy(this->get_gpu_num()))
     {
       fprintf(output_file, "GPGPU-Sim uArch DEADLOCK:  iterconnect contains traffic\n");
-      icnt_display_state(output_file);
+      icnt_display_state(this->get_gpu_num(), output_file);
     }
     fprintf(output_file,
             "\nRe-run the simulator in gdb and use debug routines in .gdbinit to "
@@ -1913,12 +1913,12 @@ void gpgpu_sim::cycle()
       {
         unsigned response_size =
             mf->get_is_write() ? mf->get_ctrl_size() : mf->size();
-        if (::icnt_has_buffer(m_shader_config->mem2device(i), response_size))
+        if (::icnt_has_buffer(this->get_gpu_num(), m_shader_config->mem2device(i), response_size))
         {
           // if (!mf->get_is_write())
           mf->set_return_timestamp(gpu_sim_cycle + gpu_tot_sim_cycle);
           mf->set_status(IN_ICNT_TO_SHADER, gpu_sim_cycle + gpu_tot_sim_cycle);
-          ::icnt_push(m_shader_config->mem2device(i), mf->get_tpc(), mf,
+          ::icnt_push(this->get_gpu_num(), m_shader_config->mem2device(i), mf->get_tpc(), mf,
                       response_size);
           m_memory_sub_partition[i]->pop();
           partiton_replys_in_parallel_per_cycle++;
@@ -1975,7 +1975,7 @@ void gpgpu_sim::cycle()
       }
       else
       {
-        mem_fetch *mf = (mem_fetch *)icnt_pop(m_shader_config->mem2device(i));
+        mem_fetch *mf = (mem_fetch *)icnt_pop(this->get_gpu_num(), m_shader_config->mem2device(i));
         m_memory_sub_partition[i]->push(mf, gpu_sim_cycle + gpu_tot_sim_cycle);
         if (mf)
           partiton_reqs_in_parallel_per_cycle++;
@@ -1994,7 +1994,7 @@ void gpgpu_sim::cycle()
 
   if (clock_mask & ICNT)
   {
-    icnt_transfer();
+    icnt_transfer(this->get_gpu_num());
   }
 
   if (clock_mask & CORE)
