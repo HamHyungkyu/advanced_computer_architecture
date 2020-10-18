@@ -51,6 +51,7 @@ char *g_network_config_filename;
 struct inct_config g_inct_config;
 LocalInterconnect *g_localicnt_interface[MAX_GPUS];
 InterconnectInterface *g_icnt_interfaces[MAX_GPUS];
+FILE *output_files[MAX_GPUS];
 
 #include "../option_parser.h"
 
@@ -173,13 +174,13 @@ static bool LocalInterconnect_busy(int gpu_num)
 static void LocalInterconnect_display_stats(int gpu_num)
 {
   assert(gpu_num < MAX_GPUS);
-  g_localicnt_interface[gpu_num]->DisplayStats();
+  g_localicnt_interface[gpu_num]->DisplayStats(output_files[gpu_num]);
 }
 
 static void LocalInterconnect_display_overall_stats(int gpu_num)
 {
   assert(gpu_num < MAX_GPUS);
-  g_localicnt_interface[gpu_num]->DisplayOverallStats();
+  g_localicnt_interface[gpu_num]->DisplayOverallStats(output_files[gpu_num]);
 }
 
 static void LocalInterconnect_display_state(int gpu_num, FILE *fp)
@@ -221,9 +222,10 @@ void icnt_reg_options(class OptionParser *opp)
                          &g_inct_config.grant_cycles, "grant_cycles", "1");
 }
 
-void icnt_wrapper_init(int gpu_num)
+void icnt_wrapper_init(int gpu_num, FILE *output_file)
 {
   assert(gpu_num < MAX_GPUS);
+  output_files[gpu_num] = output_file;
   switch (g_network_mode)
   {
   case INTERSIM:

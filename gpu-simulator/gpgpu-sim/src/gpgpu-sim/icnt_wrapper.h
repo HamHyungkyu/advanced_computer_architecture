@@ -68,7 +68,7 @@ enum network_mode
     N_NETWORK_MODE
 };
 
-void icnt_wrapper_init(int gpu_num);
+void icnt_wrapper_init(int gpu_num, FILE *output_file);
 void icnt_reg_options(class OptionParser *opp);
 
 #endif

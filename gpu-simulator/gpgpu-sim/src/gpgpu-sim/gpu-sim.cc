@@ -917,7 +917,7 @@ gpgpu_sim::gpgpu_sim(const gpgpu_sim_config &config, gpgpu_context *ctx)
     }
   }
 
-  icnt_wrapper_init(m_config.gpu_num);
+  icnt_wrapper_init(m_config.gpu_num, output_file);
   icnt_create(m_config.gpu_num, m_shader_config->n_simt_clusters,
               m_memory_config->m_n_mem_sub_partition);
 

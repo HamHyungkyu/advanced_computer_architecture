@@ -445,9 +445,8 @@ bool LocalInterconnect::HasBuffer(unsigned deviceID, unsigned int size) const
   return has_buffer;
 }
 
-void LocalInterconnect::DisplayStats() const
+void LocalInterconnect::DisplayStats(FILE *fp) const
 {
-  FILE *fp = stdout;
   fprintf(fp, "Req_Network_injected_packets_num = %lld\n",
           net[REQ_NET]->packets_num);
   fprintf(fp, "Req_Network_cycles = %lld\n", net[REQ_NET]->cycles);
@@ -495,7 +494,7 @@ void LocalInterconnect::DisplayStats() const
            net[REPLY_NET]->active_out_buffers));
 }
 
-void LocalInterconnect::DisplayOverallStats() const {}
+void LocalInterconnect::DisplayOverallStats(FILE *fp) const {}
 
 unsigned LocalInterconnect::GetFlitSize() const { return LOCAL_INCT_FLIT_SIZE; }
 
