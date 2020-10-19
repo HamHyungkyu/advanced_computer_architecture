@@ -3136,7 +3136,7 @@ void shader_core_ctx::register_cta_thread_exit(unsigned cta_num,
           LIVENESS,
           "GPGPU-Sim uArch: Empty (last released kernel %u \'%s\').\n",
           kernel->get_uid(), kernel->name().c_str());
-      fflush(stdout);
+      fflush(m_gpu->get_output_file());
 
       // Shader can only be empty when no more cta are dispatched
       if (kernel != m_kernel)
@@ -3270,7 +3270,7 @@ void gpgpu_sim::shader_print_cache_stats(FILE *fout) const
     {
       m_cluster[i]->get_L1D_sub_stats(css);
 
-      fprintf(stdout,
+      fprintf(fout,
               "\tL1D_cache_core[%d]: Access = %llu, Miss = %llu, Miss_rate = "
               "%.3lf, Pending_hits = %llu, Reservation_fails = %llu\n",
               i, css.accesses, css.misses,

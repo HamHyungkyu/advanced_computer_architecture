@@ -234,6 +234,10 @@ class OptionParser {
         i += 1;
         optionFound = true;
       }
+      else if (string(argv[i]) == "-num_gpus"){
+        optionFound = true;
+        i+=1;
+      }
       if (optionFound == false) {
         fprintf(stderr, "\n\nGPGPU-Sim ** ERROR: Unknown Option: '%s' \n",
                 argv[i]);

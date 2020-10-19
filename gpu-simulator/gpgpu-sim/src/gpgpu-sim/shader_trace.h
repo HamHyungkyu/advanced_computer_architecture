@@ -31,6 +31,7 @@
 #define __SHADER_TRACE_H__
 
 #include "../trace.h"
+#include "gpu-sim.h"
 
 #if TRACING_ON
 
@@ -45,10 +46,10 @@
 #define SHADER_DPRINTF(x, ...)                                \
   do {                                                        \
     if (SHADER_DTRACE(x)) {                                   \
-      printf(SHADER_PRINT_STR,                                \
+      fprintf(m_gpu->get_output_file(), SHADER_PRINT_STR,     \
              m_gpu->gpu_sim_cycle + m_gpu->gpu_tot_sim_cycle, \
              Trace::trace_streams_str[Trace::x], get_sid());  \
-      printf(__VA_ARGS__);                                    \
+      fprintf(m_gpu->get_output_file(), __VA_ARGS__);         \
     }                                                         \
   } while (0)
 
@@ -57,12 +58,12 @@
 #define SCHED_DPRINTF(...)                                               \
   do {                                                                   \
     if (SHADER_DTRACE(WARP_SCHEDULER)) {                                 \
-      printf(SCHED_PRINT_STR,                                            \
+      fprintf(m_shader->get_gpu()->get_output_file(), SCHED_PRINT_STR,   \
              m_shader->get_gpu()->gpu_sim_cycle +                        \
                  m_shader->get_gpu()->gpu_tot_sim_cycle,                 \
              Trace::trace_streams_str[Trace::WARP_SCHEDULER], get_sid(), \
              m_id);                                                      \
-      printf(__VA_ARGS__);                                               \
+      fprintf(m_shader->get_gpu()->get_output_file(), __VA_ARGS__);      \
     }                                                                    \
   } while (0)
 

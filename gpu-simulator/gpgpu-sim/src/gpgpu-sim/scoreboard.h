@@ -39,7 +39,7 @@
 
 class Scoreboard {
  public:
-  Scoreboard(unsigned sid, unsigned n_warps, class gpgpu_t *gpu);
+  Scoreboard(unsigned sid, unsigned n_warps, class gpgpu_sim *gpu);
 
   void reserveRegisters(const warp_inst_t *inst);
   void releaseRegisters(const warp_inst_t *inst);
@@ -62,7 +62,7 @@ class Scoreboard {
   // Register that depend on a long operation (global, local or tex memory)
   std::vector<std::set<unsigned> > longopregs;
 
-  class gpgpu_t *m_gpu;
+  class gpgpu_sim *m_gpu;
 };
 
 #endif /* SCOREBOARD_H_ */

@@ -1516,7 +1516,7 @@ void gpgpu_sim::gpu_print_stat()
   fprintf(output_file, "\nicnt_total_pkts_mem_to_simt=%ld\n", total_mem_to_simt);
   fprintf(output_file, "icnt_total_pkts_simt_to_mem=%ld\n", total_simt_to_mem);
 
-  time_vector_print();
+  time_vector_print(output_file);
   fflush(output_file);
 
   clear_executed_kernel_info();

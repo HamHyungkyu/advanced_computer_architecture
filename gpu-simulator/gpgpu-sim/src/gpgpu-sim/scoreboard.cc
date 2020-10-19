@@ -32,7 +32,7 @@
 #include "shader_trace.h"
 
 // Constructor
-Scoreboard::Scoreboard(unsigned sid, unsigned n_warps, class gpgpu_t* gpu)
+Scoreboard::Scoreboard(unsigned sid, unsigned n_warps, class gpgpu_sim* gpu)
     : longopregs() {
   m_sid = sid;
   // Initialize size of table

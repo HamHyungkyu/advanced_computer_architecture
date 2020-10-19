@@ -327,14 +327,14 @@ class my_time_vector {
   void print_to_file(FILE* outfile) {
     unsigned i;
     calculate_dist();
-    fprintf(outfile, "LDmemlatdist:");
+    fprintf(outfile, "LD_mem_lat_dist:");
     for (i = 0; i < ld_vector_size; i++) {
-      fprintf(outfile, " %d", (int)ld_time_dist[i]);
+      fprintf(outfile, " %d", (int)overal_ld_time_dist[i]);
     }
     fprintf(outfile, "\n");
-    fprintf(outfile, "STmemlatdist:");
+    fprintf(outfile, "ST_mem_lat_dist:");
     for (i = 0; i < st_vector_size; i++) {
-      fprintf(outfile, " %d", (int)st_time_dist[i]);
+      fprintf(outfile, " %d", (int)overal_st_time_dist[i]);
     }
     fprintf(outfile, "\n");
   }
@@ -360,7 +360,7 @@ void time_vector_create(int size) {
   g_my_time_vector = new my_time_vector(size, size);
 }
 
-void time_vector_print(void) { g_my_time_vector->print_dist(); }
+void time_vector_print(FILE* fp) { g_my_time_vector->print_to_file(fp); }
 
 void time_vector_print_interval2gzfile(gzFile outfile) {
   g_my_time_vector->print_to_gzfile(outfile);

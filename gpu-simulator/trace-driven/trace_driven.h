@@ -111,6 +111,7 @@ public:
   void parse_config();
   void reg_options(option_parser_t opp);
   std::string get_traces_filename();
+  FILE *get_output_file() const { return output_file; }
 
 private:
   unsigned int_latency, fp_latency, dp_latency, sfu_latency, tensor_latency;
