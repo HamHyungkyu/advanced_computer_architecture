@@ -11,6 +11,8 @@
 #include <vector>
 #include <cstdlib>
 #include <thread>
+#include <mutex>
+#include <condition_variable>
 #include "gpgpu_context.h"
 #include "abstract_hardware_model.h"
 #include "cuda-sim/cuda-sim.h"
@@ -42,12 +44,15 @@
  * 5- Get rid off traces intermediate files -
  * change the tracer
  */
-int cycle_sync = 0;
+std::mutex mtx;
+std::condition_variable cycle_sync;
+static int ready_counter = 0;
+static int cycle_counter = 0;
 gpgpu_sim *gpgpu_trace_sim_init_perf_model(int argc, const char *argv[],
                                            gpgpu_context *m_gpgpu_context,
                                            class trace_config *m_config, int num_gpu);
 int parse_num_gpus(int argc, const char**argv);
-void do_gpu_perf(int gpu_num, trace_config tconfig, gpgpu_context *m_gpgpu_context, gpgpu_sim *m_gpgpu_sim);
+void do_gpu_perf(int num_gpus, trace_config tconfig, gpgpu_context *m_gpgpu_context, gpgpu_sim *m_gpgpu_sim);
 int main(int argc, const char **argv)
 {
   int num_gpus = parse_num_gpus(argc, argv);
@@ -68,7 +73,7 @@ int main(int argc, const char **argv)
   }
 
   for(int i = 0; i<num_gpus; i++){
-      threads.push_back(std::thread(do_gpu_perf, i, *m_trace_configs[i], m_gpgpu_contexts[i], m_gpgpu_sims[i]));
+      threads.push_back(std::thread(do_gpu_perf, num_gpus, *m_trace_configs[i], m_gpgpu_contexts[i], m_gpgpu_sims[i]));
   }
   for (auto& th : threads) th.join();
   // we print this message to inform the gpgpu-simulation stats_collect script
@@ -91,7 +96,7 @@ int parse_num_gpus(int argc, const char** argv)
   return num_gpus;
 }
 
-void do_gpu_perf(int gpu_num, trace_config tconfig, gpgpu_context *m_gpgpu_context, gpgpu_sim *m_gpgpu_sim)
+void do_gpu_perf(int num_gpus, trace_config tconfig, gpgpu_context *m_gpgpu_context, gpgpu_sim *m_gpgpu_sim)
 {
   // for each kernel
   // load file
@@ -107,7 +112,7 @@ void do_gpu_perf(int gpu_num, trace_config tconfig, gpgpu_context *m_gpgpu_conte
   tconfig.parse_config();
 
   std::vector<trace_command> commandlist = tracer.parse_commandlist_file();
-
+  int local_cycle = 0;
   for (unsigned i = 0; i < commandlist.size(); ++i)
   {
     trace_kernel_info_t *kernel_info = NULL;
@@ -159,7 +164,18 @@ void do_gpu_perf(int gpu_num, trace_config tconfig, gpgpu_context *m_gpgpu_conte
       }
 
       active = m_gpgpu_sim->active();
-
+      std::unique_lock<std::mutex> lck(mtx);
+      ready_counter++;
+      while(ready_counter == num_gpus && local_cycle == cycle_counter){
+        cycle_sync.notify_all();
+        cycle_counter++;
+        ready_counter = 0;
+      }
+      while(ready_counter < num_gpus && local_cycle == cycle_counter){
+        cycle_sync.wait(lck);
+      }
+      lck.unlock();
+      local_cycle ++;
     } while (active);
 
     if (kernel_info)

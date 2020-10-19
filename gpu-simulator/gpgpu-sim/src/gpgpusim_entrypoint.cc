@@ -246,6 +246,7 @@ void gpgpu_context::start_sim_thread(int api) {
 }
 
 void gpgpu_context::print_simulation_time() {
+  FILE* output_file = the_gpgpusim->g_the_gpu->get_output_file();
   time_t current_time, difference, d, h, m, s;
   current_time = time((time_t *)NULL);
   difference = MAX(current_time - the_gpgpusim->g_simulation_starttime, 1);
@@ -256,17 +257,17 @@ void gpgpu_context::print_simulation_time() {
   s = difference - 60 * (m + 60 * (h + 24 * d));
 
   fflush(stderr);
-  printf(
+  fprintf(output_file,
       "\n\ngpgpu_simulation_time = %u days, %u hrs, %u min, %u sec (%u sec)\n",
       (unsigned)d, (unsigned)h, (unsigned)m, (unsigned)s, (unsigned)difference);
-  printf("gpgpu_simulation_rate = %u (inst/sec)\n",
+  fprintf(output_file, "gpgpu_simulation_rate = %u (inst/sec)\n",
          (unsigned)(the_gpgpusim->g_the_gpu->gpu_tot_sim_insn / difference));
   const unsigned cycles_per_sec =
       (unsigned)(the_gpgpusim->g_the_gpu->gpu_tot_sim_cycle / difference);
-  printf("gpgpu_simulation_rate = %u (cycle/sec)\n", cycles_per_sec);
-  printf("gpgpu_silicon_slowdown = %ux\n",
+  fprintf(output_file, "gpgpu_simulation_rate = %u (cycle/sec)\n", cycles_per_sec);
+  fprintf(output_file, "gpgpu_silicon_slowdown = %ux\n",
          the_gpgpusim->g_the_gpu->shader_clock() * 1000 / cycles_per_sec);
-  fflush(stdout);
+  fflush(output_file);
 }
 
 int gpgpu_context::gpgpu_opencl_ptx_sim_main_perf(kernel_info_t *grid) {
