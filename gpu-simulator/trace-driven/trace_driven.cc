@@ -54,8 +54,60 @@ trace_parser::trace_parser(const char *kernellist_filepath,
   kernellist_filename = kernellist_filepath;
 }
 
-std::vector<trace_command> trace_parser::parse_commandlist_file()
+std::vector<schedule_command> trace_parser::parse_schedule_file()
 {
+  kernellist_filename = kernellist_filename.append("kernelslist.g");
+
+  ifs.open(kernellist_filename);
+
+  if (!ifs.is_open())
+  {
+    std::cout << "Unable to open file: " << kernellist_filename << std::endl;
+    exit(1);
+  }
+
+  std::string directory(kernellist_filename);
+  const size_t last_slash_idx = directory.rfind('/');
+  if (std::string::npos != last_slash_idx)
+  {
+    directory = directory.substr(0, last_slash_idx);
+  }
+
+  std::string line, filepath;
+  std::vector<schedule_command> commandlist;
+  while (!ifs.eof())
+  {
+    getline(ifs, line);
+    if (line.empty())
+      continue;
+    else if (line.substr(0, 21) == "cudaDeviceSynchronize")
+    {
+      std::vector<std::string> params;
+      split(line, params, ' ');
+      assert(params.size() == 2);
+      schedule_command command;
+      command.command_string = line;
+      command.m_type = command_type::device_sync;
+      command.gpu_num = atoi(params[1].c_str());
+      commandlist.push_back(command);
+    }
+    else if (line.substr(0, 6) == "kernel")
+    {
+      schedule_command command;
+      command.m_type = command_type::kernel_launch;
+      command.command_string = line;
+      commandlist.push_back(command);
+    }
+    // ignore gpu_to_cpu_memory_cpy
+  }
+  ifs.close();
+  return commandlist;
+}
+
+std::vector<trace_command> trace_parser::parse_commandlist_file()
+{  
+
+  kernellist_filename = kernellist_filename.append("GPU_" + std::to_string(m_gpgpu_sim->get_gpu_num()) + "/kernelslist.g");
   ifs.open(kernellist_filename);
 
   if (!ifs.is_open())
@@ -697,7 +749,6 @@ std::string trace_config::get_traces_filename()
 {
   std::string file_name;
   file_name.assign(this->g_traces_filename);
-  file_name.append("GPU_" + std::to_string(gpu_num) + "/kernelslist.g");
   return file_name;
 }
 

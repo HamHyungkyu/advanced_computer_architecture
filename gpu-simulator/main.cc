@@ -110,7 +110,7 @@ void do_gpu_perf(int num_gpus, trace_config tconfig, gpgpu_context *m_gpgpu_cont
   trace_parser tracer(file_name.c_str(), m_gpgpu_sim,
                       m_gpgpu_context);
   tconfig.parse_config();
-
+  std::vector<schedule_command> schedule_commands = tracer.parse_schedule_file();
   std::vector<trace_command> commandlist = tracer.parse_commandlist_file();
   int local_cycle = 0;
   for (unsigned i = 0; i < commandlist.size(); ++i)
