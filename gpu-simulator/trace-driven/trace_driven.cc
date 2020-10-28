@@ -10,6 +10,7 @@
 #include <string>
 #include <time.h>
 #include <vector>
+#include <queue>
 
 #include "ISA_Def/kepler_opcode.h"
 #include "ISA_Def/pascal_opcode.h"
@@ -54,10 +55,11 @@ trace_parser::trace_parser(const char *kernellist_filepath,
   kernellist_filename = kernellist_filepath;
 }
 
-std::vector<schedule_command> trace_parser::parse_schedule_file()
+std::queue<schedule_command> trace_parser::parse_schedule_file(std::string kernellist_filename)
 {
   kernellist_filename = kernellist_filename.append("kernelslist.g");
 
+  std::ifstream ifs;
   ifs.open(kernellist_filename);
 
   if (!ifs.is_open())
@@ -74,7 +76,7 @@ std::vector<schedule_command> trace_parser::parse_schedule_file()
   }
 
   std::string line, filepath;
-  std::vector<schedule_command> commandlist;
+  std::queue<schedule_command> commandlist;
   while (!ifs.eof())
   {
     getline(ifs, line);
@@ -89,14 +91,21 @@ std::vector<schedule_command> trace_parser::parse_schedule_file()
       command.command_string = line;
       command.m_type = command_type::device_sync;
       command.gpu_num = atoi(params[1].c_str());
-      commandlist.push_back(command);
+      commandlist.push(command);
     }
     else if (line.substr(0, 6) == "kernel")
     {
       schedule_command command;
       command.m_type = command_type::kernel_launch;
       command.command_string = line;
-      commandlist.push_back(command);
+      commandlist.push(command);
+    }
+    else if (line.substr(0, 10) == "MemcpyHtoD")
+    {
+      schedule_command command;
+      command.command_string = line;
+      command.m_type = command_type::cpu_gpu_mem_copy;
+      commandlist.push(command);
     }
     // ignore gpu_to_cpu_memory_cpy
   }
@@ -105,7 +114,7 @@ std::vector<schedule_command> trace_parser::parse_schedule_file()
 }
 
 std::vector<trace_command> trace_parser::parse_commandlist_file()
-{  
+{
 
   kernellist_filename = kernellist_filename.append("GPU_" + std::to_string(m_gpgpu_sim->get_gpu_num()) + "/kernelslist.g");
   ifs.open(kernellist_filename);
@@ -157,7 +166,7 @@ void trace_parser::parse_memcpy_info(const std::string &memcpy_command,
 {
   std::vector<std::string> params;
   split(memcpy_command, params, ',');
-  assert(params.size() == 3);
+  assert(params.size() == 4 || params.size() == 3);
   std::stringstream ss;
   ss.str(params[1]);
   ss >> std::hex >> address;

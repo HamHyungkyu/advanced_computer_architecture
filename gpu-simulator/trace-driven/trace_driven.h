@@ -30,7 +30,7 @@ struct schedule_command
   int gpu_num;
   std::string command_string;
   command_type m_type;
-}
+};
 
 class trace_function_info : public function_info
 {
@@ -143,8 +143,7 @@ class trace_parser
 public:
   trace_parser(const char *kernellist_filepath, gpgpu_sim *m_gpgpu_sim,
                gpgpu_context *m_gpgpu_context);
-
-  std::vector<schedule_command> parse_schedule_file();
+  static std::queue<schedule_command> parse_schedule_file(std::string kernellist_filename);
   std::vector<trace_command> parse_commandlist_file();
   trace_kernel_info_t *
   parse_kernel_info(const std::string &kerneltraces_filepath,
