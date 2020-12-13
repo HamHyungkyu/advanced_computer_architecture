@@ -51,21 +51,26 @@ bool wating_gpus[MAX_GPUS];
 bool exit_gpus[MAX_GPUS];
 
 std::queue<schedule_command> schedule_commands;
-std::mutex cycle_mtx;
-std::mutex kernel_mtx;
-std::mutex exit_mtx;
-std::condition_variable cycle_sync;
+std::mutex cycle_mtx; // mutex for cycle synchronize
+std::mutex kernel_mtx; // mutex for kernel scheduling
+std::mutex exit_mtx; // mutex for exit checking
+std::condition_variable cycle_sync; // conditoin variable for cycle synchronize
 static int ready_counter = 0;
 static int cycle_counter = 0;
+
 gpgpu_sim *gpgpu_trace_sim_init_perf_model(int argc, const char *argv[],
                                            gpgpu_context *m_gpgpu_context,
                                            class trace_config *m_config, int num_gpu);
 int parse_num_gpus(int argc, const char **argv);
+bool check_scheduling(std::string kernel_name);
+bool check_sync_device_finished(int num_gpus);
+bool check_all_gpu_sim_active(int num_gpus);
+void cycle_synchronizer(int num_gpus, int *local_cycle);
 void do_gpu_perf(int num_gpus, trace_config tconfig, gpgpu_context *m_gpgpu_context, gpgpu_sim *m_gpgpu_sim);
+
 int main(int argc, const char **argv)
 {
   int num_gpus = parse_num_gpus(argc, argv);
-  //int num_gpus = 1;
   FILE *output_files[num_gpus];
   gpgpu_context *m_gpgpu_contexts[num_gpus];
   trace_config *m_trace_configs[num_gpus];
@@ -96,59 +101,6 @@ int main(int argc, const char **argv)
   return 1;
 }
 
-int parse_num_gpus(int argc, const char **argv)
-{
-  int num_gpus = 1;
-  for (int i = 1; i < argc - 1; i++)
-  {
-    if (std::string(argv[i]) == "-num_gpus")
-    {
-      num_gpus = atoi(argv[i + 1]);
-      return num_gpus;
-    }
-  }
-  return num_gpus;
-}
-
-bool check_scheduling(std::string kernel_name)
-{
-  kernel_name = kernel_name.erase(0, kernel_name.find_last_of('/') + 1);
-  bool kenel_can_run = kernel_name == schedule_commands.front().command_string;
-
-  if (kenel_can_run)
-  {
-    std::unique_lock<std::mutex> lck(kernel_mtx);
-    schedule_commands.pop();
-    while (schedule_commands.front().m_type == command_type::device_sync)
-    {
-      wating_gpus[schedule_commands.front().gpu_num] = true;
-      schedule_commands.pop();
-    }
-    lck.unlock();
-  }
-  return kenel_can_run;
-}
-
-bool check_sync_device_finished(int num_gpus)
-{
-  bool finished = false;
-  for (int i = 0; i < num_gpus; i++)
-  {
-    finished = finished || wating_gpus[i];
-  }
-  return !finished;
-}
-
-bool check_all_gpu_sim_active(int num_gpus)
-{
-  bool finished = true;
-  for (int i = 0; i < num_gpus; i++)
-  {
-    finished = finished && exit_gpus[i];
-  }
-  return !finished;
-}
-
 void do_gpu_perf(int num_gpus, trace_config tconfig, gpgpu_context *m_gpgpu_context, gpgpu_sim *m_gpgpu_sim)
 {
   // for each kernel
@@ -170,28 +122,10 @@ void do_gpu_perf(int num_gpus, trace_config tconfig, gpgpu_context *m_gpgpu_cont
   bool all_gpu_sim_active = true;
   trace_kernel_info_t *kernel_info;
   unsigned int i = 0;
-  do
+  do // do cycle 
   {
-    //loop synchronizer
-    std::unique_lock<std::mutex> lck(cycle_mtx);
-    ready_counter++;
-    while (ready_counter == num_gpus && local_cycle == cycle_counter)
-    {
-      cycle_sync.notify_all();
-      cycle_counter++;
-      ready_counter = 0;
-    }
-    while (ready_counter < num_gpus && local_cycle == cycle_counter)
-    {
-      cycle_sync.wait(lck);
-    }
-    lck.unlock();
-    local_cycle++;
+    cycle_synchronizer(num_gpus, &local_cycle);
 
-    if (!check_all_gpu_sim_active(num_gpus))
-    {
-      break;
-    }
     //if current gpu is finished
     if (!sim_active)
       continue;
@@ -244,10 +178,10 @@ void do_gpu_perf(int num_gpus, trace_config tconfig, gpgpu_context *m_gpgpu_cont
       else
         assert(0);
     }
+    
     bool active = false;
     bool sim_cycles = false;
-    bool break_limit = false;
-
+    
     // performance simulation
     if (m_gpgpu_sim->active())
     {
@@ -255,16 +189,6 @@ void do_gpu_perf(int num_gpus, trace_config tconfig, gpgpu_context *m_gpgpu_cont
       sim_cycles = true;
       m_gpgpu_sim->deadlock_check();
     }
-    // else
-    // {
-    //   if (m_gpgpu_sim->cycle_insn_cta_max_hit())
-    //   {
-    //     m_gpgpu_context->the_gpgpusim->g_stream_manager
-    //         ->stop_all_running_kernels();
-    //     break_limit = true;
-    //   }
-    // }
-
     //finish kernel
     if (!m_gpgpu_sim->active() && !finished_gpu_jobs[gpu_num])
     {
@@ -285,13 +209,7 @@ void do_gpu_perf(int num_gpus, trace_config tconfig, gpgpu_context *m_gpgpu_cont
     next_launch = !active && check_sync_device_finished(num_gpus);
     if (next_launch)
       i++;
-    // if (break_limit)
-    // {
-    //   printf("GPGPU-Sim: ** break due to reaching the maximum cycles (or "
-    //          "instructions) **\n");
-    //   fflush(stdout);
-    //   exit(1);
-    // }
+  
     sim_active = !(i == commandlist.size() && next_launch);
     if (!sim_active)
     {
@@ -300,7 +218,7 @@ void do_gpu_perf(int num_gpus, trace_config tconfig, gpgpu_context *m_gpgpu_cont
       lck.unlock();
     }
 
-  } while (true);
+  } while (check_all_gpu_sim_active(num_gpus));
   m_gpgpu_sim->update_stats();
   m_gpgpu_context->print_simulation_time();
   printf("FINISHED - %d\n", m_gpgpu_sim->get_gpu_num());
@@ -342,4 +260,79 @@ gpgpu_sim *gpgpu_trace_sim_init_perf_model(int argc, const char *argv[],
   m_gpgpu_context->the_gpgpusim->g_simulation_starttime = time((time_t *)NULL);
 
   return m_gpgpu_context->the_gpgpusim->g_the_gpu;
+}
+
+void cycle_synchronizer(int num_gpus, int *local_cycle){
+    //loop synchronizer
+    std::unique_lock<std::mutex> lck(cycle_mtx);
+    ready_counter++;
+    while (ready_counter == num_gpus && *local_cycle == cycle_counter)
+    {
+      cycle_sync.notify_all();
+      cycle_counter++;
+      ready_counter = 0;
+    }
+    while (ready_counter < num_gpus && *local_cycle == cycle_counter)
+    {
+      cycle_sync.wait(lck);
+    }
+    lck.unlock();
+    (*local_cycle)++;
+}
+
+int parse_num_gpus(int argc, const char **argv)
+{
+  int num_gpus = 1;
+  for (int i = 1; i < argc - 1; i++)
+  {
+    if (std::string(argv[i]) == "-num_gpus")
+    {
+      num_gpus = atoi(argv[i + 1]);
+      return num_gpus;
+    }
+  }
+  return num_gpus;
+}
+
+//Checking kernel scheduling
+//If schedule commands have decvice_sync, set Wating_gpus 
+bool check_scheduling(std::string kernel_name)
+{
+  kernel_name = kernel_name.erase(0, kernel_name.find_last_of('/') + 1);
+  bool kenel_can_run = kernel_name == schedule_commands.front().command_string;
+
+  if (kenel_can_run)
+  {
+    std::unique_lock<std::mutex> lck(kernel_mtx);
+    schedule_commands.pop();
+    while (schedule_commands.front().m_type == command_type::device_sync)
+    {
+      wating_gpus[schedule_commands.front().gpu_num] = true;
+      schedule_commands.pop();
+    }
+    lck.unlock();
+  }
+  return kenel_can_run;
+}
+
+//Return true when all device_sync gpu finished
+bool check_sync_device_finished(int num_gpus)
+{
+  bool finished = false;
+  for (int i = 0; i < num_gpus; i++)
+  {
+    finished = finished || wating_gpus[i];
+  }
+  return !finished;
+}
+
+//return false when all gpu exited 
+bool check_all_gpu_sim_active(int num_gpus)
+{
+  bool finished = true;
+  for (int i = 0; i < num_gpus; i++)
+  {
+    finished = finished && exit_gpus[i];
+  }
+  return !finished;
 }
