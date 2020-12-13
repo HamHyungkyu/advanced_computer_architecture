@@ -56,7 +56,8 @@ enum _memory_space_t {
   surf_space,
   global_space,
   generic_space,
-  instruction_space
+  instruction_space,
+  cxl_memory_buffer_space
 };
 
 enum FuncCache {
@@ -108,7 +109,8 @@ enum uarch_op_t {
   SPECIALIZED_UNIT_5_OP,
   SPECIALIZED_UNIT_6_OP,
   SPECIALIZED_UNIT_7_OP,
-  SPECIALIZED_UNIT_8_OP
+  SPECIALIZED_UNIT_8_OP,
+  CXL_NDP_OP
 };
 typedef enum uarch_op_t op_type;
 
@@ -147,6 +149,7 @@ enum operation_pipeline_t {
   TENSOR_CORE__OP,
   MEM__OP,
   SPECIALIZED__OP,
+  CXL_NDP__OP
 };
 typedef enum operation_pipeline_t operation_pipeline;
 enum mem_operation_t { NOT_TEX, TEX };
@@ -735,7 +738,7 @@ typedef std::bitset<SECTOR_CHUNCK_SIZE> mem_access_sector_mask_t;
       MA_TUP(TEXTURE_ACC_R), MA_TUP(GLOBAL_ACC_W), MA_TUP(LOCAL_ACC_W), \
       MA_TUP(L1_WRBK_ACC), MA_TUP(L2_WRBK_ACC), MA_TUP(INST_ACC_R),     \
       MA_TUP(L1_WR_ALLOC_R), MA_TUP(L2_WR_ALLOC_R),                     \
-      MA_TUP(NUM_MEM_ACCESS_TYPE) MA_TUP_END(mem_access_type)
+      MA_TUP(NUM_MEM_ACCESS_TYPE), MA_TUP(CXL_NDP)  MA_TUP_END(mem_access_type)
 
 #define MA_TUP_BEGIN(X) enum X {
 #define MA_TUP(X) X
@@ -929,6 +932,9 @@ class inst_t {
   bool is_store() const {
     return (op == STORE_OP || op == TENSOR_CORE_STORE_OP ||
             memory_op == memory_store);
+  }
+  bool is_cxl() const {
+    return (op == CXL_NDP_OP);
   }
   unsigned get_num_operands() const { return num_operands; }
   unsigned get_num_regs() const { return num_regs; }

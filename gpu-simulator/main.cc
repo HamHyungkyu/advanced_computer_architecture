@@ -45,7 +45,7 @@
  * 5- Get rid off traces intermediate files -
  * change the tracer
  */
-#define MAX_GPUS 8
+#define MAX_GPUS 16
 bool finished_gpu_jobs[MAX_GPUS];
 bool wating_gpus[MAX_GPUS];
 bool exit_gpus[MAX_GPUS];
@@ -109,6 +109,7 @@ int parse_num_gpus(int argc, const char **argv)
   }
   return num_gpus;
 }
+
 bool check_scheduling(std::string kernel_name)
 {
   kernel_name = kernel_name.erase(0, kernel_name.find_last_of('/') + 1);

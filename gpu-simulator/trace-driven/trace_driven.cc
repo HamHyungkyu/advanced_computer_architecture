@@ -1003,7 +1003,7 @@ void trace_shader_core_ctx::checkExecutionStatusAndUpdate(warp_inst_t &inst,
 void trace_shader_core_ctx::func_exec_inst(warp_inst_t &inst)
 {
   // here, we generate memory acessess and set the status if thread (done?)
-  if (inst.is_load() || inst.is_store())
+  if (inst.is_load() || inst.is_store() || inst.is_cxl())
   {
     inst.generate_mem_accesses();
   }

@@ -1280,6 +1280,8 @@ class ldst_unit : public pipelined_simd_unit {
         break;
       case MEMORY_BARRIER_OP:
         break;
+      case CXL_NDP_OP:
+        break;
       default:
         return false;
     }

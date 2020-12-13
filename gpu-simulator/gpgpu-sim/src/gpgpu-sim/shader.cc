@@ -1367,7 +1367,8 @@ void scheduler_unit::cycle()
             if ((pI->op == LOAD_OP) || (pI->op == STORE_OP) ||
                 (pI->op == MEMORY_BARRIER_OP) ||
                 (pI->op == TENSOR_CORE_LOAD_OP) ||
-                (pI->op == TENSOR_CORE_STORE_OP))
+                (pI->op == TENSOR_CORE_STORE_OP) || 
+                (pI->op == CXL_NDP_OP))
             {
               if (m_mem_out->has_free(m_shader->m_config->sub_core_model,
                                       m_id) &&
@@ -2781,8 +2782,10 @@ void ldst_unit::issue(register_set &reg_set)
       }
     }
   }
-
-  inst->op_pipe = MEM__OP;
+  if(inst->op == CXL_NDP_OP)
+    inst->op_pipe = CXL_NDP__OP;
+  else
+    inst->op_pipe = MEM__OP;
   // stat collection
   m_core->mem_instruction_stats(*inst);
   m_core->incmem_stat(m_core->get_config()->warp_size, 1);

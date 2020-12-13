@@ -281,13 +281,13 @@ void warp_inst_t::broadcast_barrier_reduction(
 void warp_inst_t::generate_mem_accesses() {
   if (empty() || op == MEMORY_BARRIER_OP || m_mem_accesses_created) return;
   if (!((op == LOAD_OP) || (op == TENSOR_CORE_LOAD_OP) || (op == STORE_OP) ||
-        (op == TENSOR_CORE_STORE_OP)))
+        (op == TENSOR_CORE_STORE_OP) || (op == CXL_NDP_OP)))
     return;
   if (m_warp_active_mask.count() == 0) return;  // predicated off
 
   const size_t starting_queue_size = m_accessq.size();
 
-  assert(is_load() || is_store());
+  assert(is_load() || is_store() || is_cxl());
   assert(m_per_scalar_thread_valid);  // need address information per thread
 
   bool is_write = is_store();
@@ -312,6 +312,8 @@ void warp_inst_t::generate_mem_accesses() {
       break;
     case sstarr_space:
       break;
+    case cxl_memory_buffer_space:
+      access_type = CXL_NDP;
     default:
       assert(0);
       break;
@@ -434,7 +436,8 @@ void warp_inst_t::generate_mem_accesses() {
         abort();
 
       break;
-
+    case cxl_memory_buffer_space:
+      break;
     default:
       abort();
   }
