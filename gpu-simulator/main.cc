@@ -164,9 +164,7 @@ void do_gpu_perf(int num_gpus, trace_config tconfig, gpgpu_context *m_gpgpu_cont
           fprintf(m_gpgpu_sim->get_output_file(), stream.str().c_str());
           stream.clear();
           m_gpgpu_sim->launch(kernel_info);
-          std::unique_lock<std::mutex> lck(kernel_mtx);
           finished_gpu_jobs[gpu_num] = false;
-          lck.unlock();
         }
         else
         {

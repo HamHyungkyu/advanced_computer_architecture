@@ -718,7 +718,6 @@ class memory_space_t {
     return (m_type == local_space) || (m_type == param_space_local);
   }
   bool is_global() const { return (m_type == global_space); }
-
  private:
   enum _memory_space_t m_type;
   unsigned m_bank;  // n in ".const[n]"; note .const == .const[0] (see PTX 2.1
@@ -738,7 +737,8 @@ typedef std::bitset<SECTOR_CHUNCK_SIZE> mem_access_sector_mask_t;
       MA_TUP(TEXTURE_ACC_R), MA_TUP(GLOBAL_ACC_W), MA_TUP(LOCAL_ACC_W), \
       MA_TUP(L1_WRBK_ACC), MA_TUP(L2_WRBK_ACC), MA_TUP(INST_ACC_R),     \
       MA_TUP(L1_WR_ALLOC_R), MA_TUP(L2_WR_ALLOC_R),                     \
-      MA_TUP(NUM_MEM_ACCESS_TYPE), MA_TUP(CXL_NDP)  MA_TUP_END(mem_access_type)
+      MA_TUP(NUM_MEM_ACCESS_TYPE), MA_TUP(CXL_ACC_NDP), MA_TUP(REMOTE_ACC_R), \
+      MA_TUP(REMOTE_ACC_W) MA_TUP_END(mem_access_type)
 
 #define MA_TUP_BEGIN(X) enum X {
 #define MA_TUP(X) X
@@ -835,6 +835,14 @@ class mem_access_t {
       case L1_WRBK_ACC:
         fprintf(fp, "L1_WRBK ");
         break;
+      case CXL_ACC_NDP:
+        fprintf(fp, "CXL_NDP");
+        break;
+      case REMOTE_ACC_R:
+        fprintf(fp, "REMOTE_R");
+        break;
+      case REMOTE_ACC_W:
+        fprintf(fp, "REMOTE_W");
       default:
         fprintf(fp, "unknown ");
         break;

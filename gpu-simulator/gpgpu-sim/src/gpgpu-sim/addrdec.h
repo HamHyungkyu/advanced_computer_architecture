@@ -47,7 +47,7 @@ enum partition_index_function {
 
 struct addrdec_t {
   void print(FILE *fp) const;
-
+  unsigned device;
   unsigned chip;
   unsigned bk;
   unsigned row;
@@ -71,7 +71,7 @@ class linear_to_raw_address_translation {
   void addrdec_parseoption(const char *option);
   void sweep_test() const;  // sanity check to ensure no overlapping
 
-  enum { CHIP = 0, BK = 1, ROW = 2, COL = 3, BURST = 4, N_ADDRDEC };
+  enum { CHIP = 0, BK = 1, ROW = 2, COL = 3, BURST = 4, GPU_DEVICE = 5, N_ADDRDEC };
 
   const char *addrdec_option;
   int gpgpu_mem_address_mask;
