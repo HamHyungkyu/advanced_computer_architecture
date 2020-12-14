@@ -97,6 +97,7 @@ void linear_to_raw_address_translation::addrdec_tlx(new_addr_type addr,
                                                     addrdec_t *tlx) const {
   unsigned long long int addr_for_chip, rest_of_addr, rest_of_addr_high_bits;
   if (!gap) {
+    //tlx->device = addrdec_packbits();
     tlx->chip = addrdec_packbits(addrdec_mask[CHIP], addr, addrdec_mkhigh[CHIP],
                                  addrdec_mklow[CHIP]);
     tlx->bk = addrdec_packbits(addrdec_mask[BK], addr, addrdec_mkhigh[BK],
