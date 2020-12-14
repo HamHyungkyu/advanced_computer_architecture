@@ -70,6 +70,7 @@ void do_gpu_perf(int num_gpus, trace_config tconfig, gpgpu_context *m_gpgpu_cont
 
 int main(int argc, const char **argv)
 {
+  time_t start_time = time(NULL);
   int num_gpus = parse_num_gpus(argc, argv);
   FILE *output_files[num_gpus];
   gpgpu_context *m_gpgpu_contexts[num_gpus];
@@ -95,8 +96,10 @@ int main(int argc, const char **argv)
     th.join();
   // we print this message to inform the gpgpu-simulation stats_collect script
   // that we are done
+  time_t end_time = time(NULL);
   printf("GPGPU-Sim:  *** simulation thread exiting ***\n");
   printf("GPGPU-Sim: *** exit detected ***\n");
+  printf("Spent %lld second for simulation", end_time - start_time);
 
   return 1;
 }
@@ -125,7 +128,7 @@ void do_gpu_perf(int num_gpus, trace_config tconfig, gpgpu_context *m_gpgpu_cont
   do // do cycle 
   {
     cycle_synchronizer(num_gpus, &local_cycle);
-
+    printf("GPU[%d] %d cycle\n", gpu_num, local_cycle);
     //if current gpu is finished
     if (!sim_active)
       continue;
@@ -303,6 +306,7 @@ bool check_scheduling(std::string kernel_name)
 
   if (kenel_can_run)
   {
+    std::cout << "MATCH" <<std::endl;
     std::unique_lock<std::mutex> lck(kernel_mtx);
     schedule_commands.pop();
     while (schedule_commands.front().m_type == command_type::device_sync)
@@ -311,6 +315,9 @@ bool check_scheduling(std::string kernel_name)
       schedule_commands.pop();
     }
     lck.unlock();
+  }
+  else {
+    std::cout << "MISS MATCH " << kernel_name << ", " << schedule_commands.front().command_string << std::endl;
   }
   return kenel_can_run;
 }
