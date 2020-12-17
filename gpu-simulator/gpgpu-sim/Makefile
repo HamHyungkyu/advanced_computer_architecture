@@ -149,6 +149,7 @@ $(SIM_LIB_DIR)/libcudart.so: makedirs $(LIBS) cudalib
 			$(SIM_OBJ_FILES_DIR)/cuda-sim/decuda_pred_table/*.o \
 			$(SIM_OBJ_FILES_DIR)/gpgpu-sim/*.o \
 			$(SIM_OBJ_FILES_DIR)/$(INTERSIM)/*.o \
+			$(SIM_OBJ_FILES_DIR)/ramulator/*.o \
 			$(SIM_OBJ_FILES_DIR)/*.o -lm -lz -lGL -pthread \
 			$(MCPAT) \
 			-o $(SIM_LIB_DIR)/libcudart.so
@@ -176,6 +177,7 @@ $(SIM_LIB_DIR)/libcudart.dylib: makedirs $(LIBS) cudalib
 			$(SIM_OBJ_FILES_DIR)/cuda-sim/decuda_pred_table/*.o \
 			$(SIM_OBJ_FILES_DIR)/gpgpu-sim/*.o \
 			$(SIM_OBJ_FILES_DIR)/$(INTERSIM)/*.o  \
+			$(SIM_OBJ_FILES_DIR)/ramulator/*.o \
 			$(SIM_OBJ_FILES_DIR)/*.o -lm -lz -pthread \
 			$(MCPAT) \
 			-o $(SIM_LIB_DIR)/libcudart.dylib
@@ -187,6 +189,7 @@ $(SIM_LIB_DIR)/libOpenCL.so: makedirs $(LIBS) opencllib
 			$(SIM_OBJ_FILES_DIR)/cuda-sim/decuda_pred_table/*.o \
 			$(SIM_OBJ_FILES_DIR)/gpgpu-sim/*.o \
 			$(SIM_OBJ_FILES_DIR)/$(INTERSIM)/*.o \
+			$(SIM_OBJ_FILES_DIR)/ramulator/*.o \
 			$(SIM_OBJ_FILES_DIR)/*.o -lm -lz -lGL -pthread \
 			$(MCPAT) \
 			-o $(SIM_LIB_DIR)/libOpenCL.so 
@@ -216,6 +219,7 @@ TFLAGS += -g3 -fPIC
 gpgpu-sim_uarch: makedirs cuda-sim
 	$(MAKE) -C ./src/gpgpu-sim/ depend
 	$(MAKE) -C ./src/gpgpu-sim/
+	$(MAKE) -C ./src/ramulator/
 
 $(INTERSIM): makedirs cuda-sim gpgpu-sim_uarch
 	$(MAKE) "CREATE_LIBRARY=1" "DEBUG=$(DEBUG)" -C ./src/$(INTERSIM)

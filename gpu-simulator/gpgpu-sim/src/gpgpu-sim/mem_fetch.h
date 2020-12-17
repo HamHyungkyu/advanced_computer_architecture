@@ -38,9 +38,10 @@ enum mf_type {
   WRITE_REQUEST,
   READ_REPLY,  // send to shader
   WRITE_ACK,
-  CXL_REQ,
-  CXL_ACK,
-  CXL_REPLY
+  CXL_READ_REQUEST,
+  CXL_WRITE_REQUEST
+  CXL_READ_REPLY,
+  CXL_WRITE_ACK
 };
 
 #define MF_TUP_BEGIN(X) enum X {
@@ -58,6 +59,10 @@ class mem_fetch {
  public:
   mem_fetch(const mem_access_t &access, const warp_inst_t *inst,
             unsigned ctrl_size, unsigned wid, unsigned sid, unsigned tpc,
+            const memory_config *config, unsigned long long cycle,
+            mem_fetch *original_mf = NULL, mem_fetch *original_wr_mf = NULL);
+  mem_fetch(const mem_access_t &access, const warp_inst_t *inst,
+            unsigned ctrl_size, unsigned wid, unsigned sid, unsigned tpc, int gpu_id,
             const memory_config *config, unsigned long long cycle,
             mem_fetch *original_mf = NULL, mem_fetch *original_wr_mf = NULL);
   ~mem_fetch();
@@ -95,6 +100,7 @@ class mem_fetch {
   unsigned get_sub_partition_id() const { return m_raw_addr.sub_partition; }
   bool get_is_write() const { return m_access.is_write(); }
   unsigned get_request_uid() const { return m_request_uid; }
+  int get_gpu_id() const { return m_gpu_id; }
   unsigned get_sid() const { return m_sid; }
   unsigned get_tpc() const { return m_tpc; }
   unsigned get_wid() const { return m_wid; }
@@ -137,6 +143,7 @@ class mem_fetch {
   unsigned m_sid;
   unsigned m_tpc;
   unsigned m_wid;
+  int m_gpu_id;
 
   // where is this request now?
   enum mem_fetch_status m_status;
