@@ -138,6 +138,10 @@ class mem_fetch {
   mem_fetch *get_original_mf() { return original_mf; }
   mem_fetch *get_original_wr_mf() { return original_wr_mf; }
 
+  //hyunuk
+  void set_link_depart(unsigned long long clk) { m_link_depart = clk;}
+  unsigned long long get_link_depart() { return m_link_depart; }
+
  private:
   // request source information
   unsigned m_request_uid;
@@ -145,6 +149,9 @@ class mem_fetch {
   unsigned m_tpc;
   unsigned m_wid;
   int m_gpu_id;
+  
+  //hyunuk
+  unsigned long long m_link_depart;
 
   // where is this request now?
   enum mem_fetch_status m_status;

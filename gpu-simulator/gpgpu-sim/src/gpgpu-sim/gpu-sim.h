@@ -40,6 +40,9 @@
 #include "gpu-cache.h"
 #include "shader.h"
 
+//hyunuk
+#include "page_manager.h"
+
 // constants for statistics printouts
 #define GPU_RSTAT_SHD_INFO 0x1
 #define GPU_RSTAT_BW_STAT 0x2
@@ -407,6 +410,9 @@ public:
 
   bool flush_l1() const { return gpgpu_flush_l1_cache; }
 
+
+  //hyunuk
+  page_manager m_page_manager;
 private:
   void init_clock_domains(void);
 
@@ -420,10 +426,14 @@ private:
   double icnt_freq;
   double dram_freq;
   double l2_freq;
+  double link_freq;
+
   double core_period;
   double icnt_period;
   double dram_period;
   double l2_period;
+  //hyunuk
+  double link_period;
 
   // GPGPU-Sim timing model options
   unsigned long long gpu_max_cycle_opt;
@@ -638,6 +648,9 @@ protected:
   class memory_partition_unit **m_memory_partition_unit;
   class memory_sub_partition **m_memory_sub_partition;
 
+  //hyunuk
+  class NVLink *m_link;
+
   std::vector<kernel_info_t *> m_running_kernels;
   unsigned m_last_issued_kernel;
 
@@ -656,6 +669,8 @@ protected:
   double icnt_time;
   double dram_time;
   double l2_time;
+  //hyunuk
+  double link_time;
 
   // debug
   bool gpu_deadlock;

@@ -43,7 +43,7 @@ xbar_router::xbar_router(unsigned router_id, enum Interconnect_type m_type,
 {
   m_id = router_id;
   router_type = m_type;
-  _n_mem = n_mem;
+  _n_mem = n_mem;  
   _n_shader = n_shader;
   total_nodes = n_shader + n_mem;
   verbose = m_localinct_config.verbose;
@@ -361,7 +361,9 @@ void LocalInterconnect::CreateInterconnect(unsigned m_n_shader,
                                            unsigned m_n_mem)
 {
   n_shader = m_n_shader;
-  n_mem = m_n_mem;
+  //n_mem = m_n_mem;
+  //hyunuk
+  n_mem = m_n_mem +1 ;
 
   net.resize(n_subnets);
   for (unsigned i = 0; i < n_subnets; ++i)

@@ -38,6 +38,10 @@ icnt_init_p icnt_init;
 icnt_has_buffer_p icnt_has_buffer;
 icnt_push_p icnt_push;
 icnt_pop_p icnt_pop;
+
+//hyunuk
+// icnt_top_p inct_top;
+
 icnt_transfer_p icnt_transfer;
 icnt_busy_p icnt_busy;
 icnt_display_stats_p icnt_display_stats;
@@ -88,6 +92,13 @@ static void *intersim2_pop(int gpu_num, unsigned output)
   assert(gpu_num < MAX_GPUS);
   return g_icnt_interfaces[gpu_num]->Pop(output);
 }
+
+//hyunuk
+// static void *intersim2_top(int gpu_num, unsigned output)
+// {
+//   assert(gpu_num < MAX_GPUS);
+//   return g_icnt_interfaces[gpu_num]->Top(output);
+// }
 
 static void intersim2_transfer(int gpu_num)
 {
@@ -236,6 +247,10 @@ void icnt_wrapper_init(int gpu_num, FILE *output_file)
     icnt_has_buffer = intersim2_has_buffer;
     icnt_push = intersim2_push;
     icnt_pop = intersim2_pop;
+
+    //hyunuk
+    // icnt_top = intersim2_top;
+
     icnt_transfer = intersim2_transfer;
     icnt_busy = intersim2_busy;
     icnt_display_stats = intersim2_display_stats;
@@ -244,6 +259,7 @@ void icnt_wrapper_init(int gpu_num, FILE *output_file)
     icnt_get_flit_size = intersim2_get_flit_size;
     break;
   case LOCAL_XBAR:
+    // assert(0);
     g_localicnt_interface[gpu_num] = LocalInterconnect::New(g_inct_config);
     icnt_create = LocalInterconnect_create;
     icnt_init = LocalInterconnect_init;

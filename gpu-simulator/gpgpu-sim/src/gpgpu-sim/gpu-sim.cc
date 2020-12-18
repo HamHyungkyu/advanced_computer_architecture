@@ -93,6 +93,9 @@ tr1_hash_map<new_addr_type, unsigned> address_random_interleaving;
 #define DRAM 0x04
 #define ICNT 0x08
 
+//hyunuk
+#define LINK 0x10
+
 #define MEM_LATENCY_STAT_IMPL
 
 #include "mem_latency_stat.h"
@@ -855,6 +858,8 @@ void exec_gpgpu_sim::createSIMTCluster()
     m_cluster[i] =
         new exec_simt_core_cluster(this, i, m_shader_config, m_memory_config,
                                    m_shader_stats, m_memory_stats);
+    //hyunuk
+    m_cluster[i]->m_page_manager = this->m_page_manager;
 }
 
 gpgpu_sim::gpgpu_sim(const gpgpu_sim_config &config, gpgpu_context *ctx)
@@ -937,6 +942,9 @@ gpgpu_sim::gpgpu_sim(const gpgpu_sim_config &config, gpgpu_context *ctx)
   // Jin: functional simulation for CDP
   m_functional_sim = false;
   m_functional_sim_kernel = NULL;
+
+  //hyunuk
+  m_link = new NVLink(this->get_gpu_num(), 2);
 }
 
 int gpgpu_sim::shared_mem_size() const
@@ -997,20 +1005,23 @@ enum divergence_support_t gpgpu_sim::simd_model() const
 
 void gpgpu_sim_config::init_clock_domains(void)
 {
-  sscanf(gpgpu_clock_domains, "%lf:%lf:%lf:%lf", &core_freq, &icnt_freq,
-         &l2_freq, &dram_freq);
+  sscanf(gpgpu_clock_domains, "%lf:%lf:%lf:%lf:%lf", &core_freq, &icnt_freq,
+         &l2_freq, &dram_freq, &link_freq);
   core_freq = core_freq MhZ;
   icnt_freq = icnt_freq MhZ;
   l2_freq = l2_freq MhZ;
   dram_freq = dram_freq MhZ;
+  link_freq = link_freq MhZ;
   core_period = 1 / core_freq;
   icnt_period = 1 / icnt_freq;
   dram_period = 1 / dram_freq;
   l2_period = 1 / l2_freq;
-  fprintf(output_file, "GPGPU-Sim uArch: clock freqs: %lf:%lf:%lf:%lf\n", core_freq,
-          icnt_freq, l2_freq, dram_freq);
-  fprintf(output_file, "GPGPU-Sim uArch: clock periods: %.20lf:%.20lf:%.20lf:%.20lf\n",
-          core_period, icnt_period, l2_period, dram_period);
+  //hyunuk
+  link_period = 1/link_freq;
+  fprintf(output_file, "GPGPU-Sim uArch: clock freqs: %lf:%lf:%lf:%lf:%lf\n", core_freq,
+          icnt_freq, l2_freq, dram_freq, link_freq);
+  fprintf(output_file, "GPGPU-Sim uArch: clock periods: %.20lf:%.20lf:%.20lf:%.20lf:%.20lf\n",
+          core_period, icnt_period, l2_period, dram_period, link_period);
 }
 
 void gpgpu_sim::reinit_clock_domains(void)
@@ -1019,6 +1030,8 @@ void gpgpu_sim::reinit_clock_domains(void)
   dram_time = 0;
   icnt_time = 0;
   l2_time = 0;
+  //hyunuk
+  link_time = 0;
 }
 
 bool gpgpu_sim::active()
@@ -1064,6 +1077,9 @@ void gpgpu_sim::init()
   partiton_replys_in_parallel = 0;
   partiton_reqs_in_parallel_util = 0;
   gpu_sim_cycle_parition_util = 0;
+
+  //hyunuk
+  m_page_manager.set_max_gpu_pages()
 
   reinit_clock_domains();
   gpgpu_ctx->func_sim->set_param_gpgpu_num_shaders(m_config.num_shader());
@@ -1848,7 +1864,10 @@ void dram_t::dram_log(int task)
 // Find next clock domain and increment its time
 int gpgpu_sim::next_clock_domain(void)
 {
+  //double smallest = min3(core_time, icnt_time, dram_time);
   double smallest = min3(core_time, icnt_time, dram_time);
+  smallest = gs_min2(smallest, link_time);
+
   int mask = 0x00;
   if (l2_time <= smallest)
   {
@@ -1870,6 +1889,12 @@ int gpgpu_sim::next_clock_domain(void)
   {
     mask |= CORE;
     core_time += m_config.core_period;
+  }
+
+  if (link_time <= smallest)
+  {
+    mask |= LINK;
+    link_time += m_config.link_period;
   }
   return mask;
 }
@@ -1931,6 +1956,28 @@ void gpgpu_sim::cycle()
       else
       {
         m_memory_sub_partition[i]->pop();
+      }
+    }
+
+    if (!m_link->to_GPU_empty()) {
+      mem_fetch *mf = m_link->to_GPU_top();
+      int src = m_memory_config->m_n_mem_sub_partition;
+
+      unsigned response_size =
+            mf->get_is_write() ? mf->get_ctrl_size() : mf->size();
+        if (::icnt_has_buffer(this->get_gpu_num(), m_shader_config->mem2device(src) + , response_size))
+        {
+          // if (!mf->get_is_write())
+          mf->set_return_timestamp(gpu_sim_cycle + gpu_tot_sim_cycle);
+          mf->set_status(IN_ICNT_TO_SHADER, gpu_sim_cycle + gpu_tot_sim_cycle);
+          ::icnt_push(this->get_gpu_num(), m_shader_config->mem2device(src), mf->get_tpc(), mf,
+                      response_size);
+          m_link->to_GPU_pop();
+        }
+        else
+        {
+          gpu_stall_icnt2sh++;
+        }
       }
     }
   }
@@ -1995,6 +2042,17 @@ void gpgpu_sim::cycle()
   if (clock_mask & ICNT)
   {
     icnt_transfer(this->get_gpu_num());
+  }
+
+  //hyunuk
+  if (clock_mask & LINK)
+  {
+    int src = m_memory_config->m_n_mem_sub_partition;
+    if (!m_link->from_GPU_full()) {
+      mem_fetch* mf = (mem_fetch *)icnt_pop(this->get_gpu_num(), m_shader_config->mem2device(src));
+      m_link->from_GPU_push(mf);
+    }
+    m_link->cycle();
   }
 
   if (clock_mask & CORE)

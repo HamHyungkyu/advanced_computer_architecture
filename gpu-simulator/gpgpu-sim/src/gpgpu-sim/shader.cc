@@ -4978,10 +4978,24 @@ void simt_core_cluster::icnt_inject_request_packet(class mem_fetch *mf)
     assert(0);
   }
 
+  //hyunuk
+  page_location loc = m_page_manager->is_allocated(mf->get_addr());
+  if (loc == page_location::not_allocated) {
+    if (m_page_manager->gpu_full()) {
+      loc = page_location::CXL;
+    }
+  }
+  else {
+    loc = page_location::GPU;
+  }
+  m_page_manager->alloc_page(mf->get_addr(), loc);
+
   // The packet size varies depending on the type of request:
   // - For write request and atomic request, the packet contains the data
   // - For read request (i.e. not write nor atomic), the packet only has control
   // metadata
+
+  
   unsigned int packet_size = mf->size();
   if (!mf->get_is_write() && !mf->isatomic())
   {
@@ -4989,6 +5003,12 @@ void simt_core_cluster::icnt_inject_request_packet(class mem_fetch *mf)
   }
   m_stats->m_outgoing_traffic_stats->record_traffic(mf, packet_size);
   unsigned destination = mf->get_sub_partition_id();
+
+  //hyunuk
+  if (loc != page_location::GPU) {
+    destination = m_mem_config->m_n_mem_sub_partition;
+  }
+
   mf->set_status(IN_ICNT_TO_MEM,
                  m_gpu->gpu_sim_cycle + m_gpu->gpu_tot_sim_cycle);
   if (!mf->get_is_write() && !mf->isatomic())

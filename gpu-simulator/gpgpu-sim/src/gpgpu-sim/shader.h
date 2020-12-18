@@ -55,6 +55,9 @@
 #include "stats.h"
 #include "traffic_breakdown.h"
 
+//hyunuk
+#include "page_manager.h"
+
 #define NO_OP_FLAG 0xFF
 
 /* READ_PACKET_SIZE:
@@ -2305,6 +2308,8 @@ class simt_core_cluster {
 
   void core_cycle();
   void icnt_cycle();
+  //hyunuk
+  void link_cycle();
 
   void reinit();
   unsigned issue_block2core();
@@ -2312,6 +2317,11 @@ class simt_core_cluster {
   void cache_invalidate();
   bool icnt_injection_buffer_full(unsigned size, bool write);
   void icnt_inject_request_packet(class mem_fetch *mf);
+
+  //hyunuk
+  void set_link(NVLink* link) {
+    m_link = link;
+  }
 
   // for perfect memory interface
   bool response_queue_full() {
@@ -2357,6 +2367,9 @@ class simt_core_cluster {
   unsigned m_cta_issue_next_core;
   std::list<unsigned> m_core_sim_order;
   std::list<mem_fetch *> m_response_fifo;
+
+  page_manager* m_page_manager;
+  NVLink *m_link;
 };
 
 class exec_simt_core_cluster : public simt_core_cluster {
