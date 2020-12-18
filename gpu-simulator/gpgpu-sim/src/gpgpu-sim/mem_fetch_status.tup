@@ -58,4 +58,5 @@ MF_TUP_BEGIN( mem_fetch_status )
     MF_TUP( IN_SWITCH_TO_NVLINK),
     MF_TUP( IN_LINK_TO_ICNT ),
     MF_TUP( IN_ICNT_TO_LINK ),
+    MF_TUP( IN_CXL_MEMORY_BUFFER),
 MF_TUP_END( mem_fetch_status )

@@ -66,9 +66,9 @@ cxl_memory_buffer_config *parse_cxl_config(int argc, const char **argv);
 bool check_scheduling(std::string kernel_name);
 bool check_sync_device_finished(int num_gpus);
 bool check_all_gpu_sim_active(int num_gpus);
-void cycle_synchronizer(int num_gpus, int *local_cycle);
+void cycle_synchronizer(int num_gpus, unsigned long long *local_cycle);
 void do_gpu_perf(int num_gpus, trace_config tconfig, gpgpu_context *m_gpgpu_context, gpgpu_sim *m_gpgpu_sim);
-void do_cxl_perf(cxl_memory_buffer *m_cxl_memory_buffer);
+void do_cxl_perf(cxl_memory_buffer *m_cxl_memory_buffer, int num_gpus);
 
 int main(int argc, const char **argv)
 {
@@ -77,7 +77,8 @@ int main(int argc, const char **argv)
   gpgpu_context *m_gpgpu_contexts[num_gpus];
   trace_config *m_trace_configs[num_gpus];
   gpgpu_sim *m_gpgpu_sims[num_gpus];
-  cxl_memory_buffer *m_cxl_memory_buffer = new cxl_memory_buffer(parse_cxl_config(argc, argv));
+  cxl_memory_buffer_config *cxl_config = parse_cxl_config(argc, argv);
+  cxl_memory_buffer *m_cxl_memory_buffer = new cxl_memory_buffer(cxl_config);
   std::vector<std::thread> threads;
   for (int i = 0; i < num_gpus; i++)
   {
@@ -87,6 +88,7 @@ int main(int argc, const char **argv)
     m_trace_configs[i] = new trace_config(i, output_files[i]);
     m_gpgpu_sims[i] = gpgpu_trace_sim_init_perf_model(argc, argv, m_gpgpu_contexts[i], m_trace_configs[i], i);
     m_gpgpu_sims[i]->init();
+    m_cxl_memory_buffer->set_NVLink(i, m_gpgpu_sims[i]->get_NVLink());
   }
   schedule_commands = trace_parser::parse_schedule_file(m_trace_configs[0]->get_traces_filename());
   for (int i = 0; i < num_gpus; i++)
@@ -94,7 +96,7 @@ int main(int argc, const char **argv)
     exit_gpus[false];
     threads.push_back(std::thread(do_gpu_perf, num_gpus, *m_trace_configs[i], m_gpgpu_contexts[i], m_gpgpu_sims[i]));
   }
-  threads.push_back(std::thread(do_cxl_perf, m_cxl_memory_buffer));
+  threads.push_back(std::thread(do_cxl_perf, m_cxl_memory_buffer, num_gpus));
   for (auto &th : threads)
     th.join();
   // we print this message to inform the gpgpu-simulation stats_collect script
