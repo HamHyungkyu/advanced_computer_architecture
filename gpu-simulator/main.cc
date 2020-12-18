@@ -57,7 +57,6 @@ std::mutex kernel_mtx;              // mutex for kernel scheduling
 std::mutex exit_mtx;                // mutex for exit checking
 std::condition_variable cycle_sync; // conditoin variable for cycle synchronize
 static int ready_counter = 0;
-static int cycle_counter = 0;
 
 gpgpu_sim *gpgpu_trace_sim_init_perf_model(int argc, const char *argv[],
                                            gpgpu_context *m_gpgpu_context,
@@ -121,7 +120,7 @@ void do_gpu_perf(int num_gpus, trace_config tconfig, gpgpu_context *m_gpgpu_cont
                       m_gpgpu_context);
   tconfig.parse_config();
   std::vector<trace_command> commandlist = tracer.parse_commandlist_file();
-  int local_cycle = 0;
+  unsigned long long local_cycle = 0;
   bool next_launch = true;
   bool sim_active = true;
   bool all_gpu_sim_active = true;
@@ -227,8 +226,14 @@ void do_gpu_perf(int num_gpus, trace_config tconfig, gpgpu_context *m_gpgpu_cont
   printf("FINISHED - %d\n", m_gpgpu_sim->get_gpu_num());
 }
 
-void do_cxl_perf(cxl_memory_buffer *m_cxl_memory_buffer)
+void do_cxl_perf(cxl_memory_buffer *m_cxl_memory_buffer, int num_gpus)
 {
+  unsigned long long local_cycle = 0;
+  while (check_all_gpu_sim_active(num_gpus))
+  {
+    cycle_synchronizer(num_gpus, &local_cycle);
+    m_cxl_memory_buffer->cycle();
+  }
 }
 gpgpu_sim *gpgpu_trace_sim_init_perf_model(int argc, const char *argv[],
                                            gpgpu_context *m_gpgpu_context,
@@ -268,18 +273,19 @@ gpgpu_sim *gpgpu_trace_sim_init_perf_model(int argc, const char *argv[],
   return m_gpgpu_context->the_gpgpusim->g_the_gpu;
 }
 
-void cycle_synchronizer(int num_gpus, int *local_cycle)
+void cycle_synchronizer(int num_gpus, unsigned long long *local_cycle)
 {
+  static unsigned long long cycle_counter = 0;
   //loop synchronizer
   std::unique_lock<std::mutex> lck(cycle_mtx);
   ready_counter++;
-  while (ready_counter == num_gpus && *local_cycle == cycle_counter)
+  while (ready_counter == num_gpus + 1 && *local_cycle == cycle_counter) // plus on for cxl memoy buffer
   {
     cycle_sync.notify_all();
     cycle_counter++;
     ready_counter = 0;
   }
-  while (ready_counter < num_gpus && *local_cycle == cycle_counter)
+  while (ready_counter < num_gpus + 1 && *local_cycle == cycle_counter)
   {
     cycle_sync.wait(lck);
   }
