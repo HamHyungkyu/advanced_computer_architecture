@@ -19,6 +19,7 @@
 #include "cuda-sim/cuda-sim.h"
 #include "gpgpu-sim/gpu-sim.h"
 #include "gpgpu-sim/icnt_wrapper.h"
+#include "gpgpu-sim/cxl_memory_buffer.h"
 #include "gpgpusim_entrypoint.h"
 #include "option_parser.h"
 #include "ISA_Def/trace_opcode.h"
@@ -51,9 +52,9 @@ bool wating_gpus[MAX_GPUS];
 bool exit_gpus[MAX_GPUS];
 
 std::queue<schedule_command> schedule_commands;
-std::mutex cycle_mtx; // mutex for cycle synchronize
-std::mutex kernel_mtx; // mutex for kernel scheduling
-std::mutex exit_mtx; // mutex for exit checking
+std::mutex cycle_mtx;               // mutex for cycle synchronize
+std::mutex kernel_mtx;              // mutex for kernel scheduling
+std::mutex exit_mtx;                // mutex for exit checking
 std::condition_variable cycle_sync; // conditoin variable for cycle synchronize
 static int ready_counter = 0;
 static int cycle_counter = 0;
@@ -62,11 +63,13 @@ gpgpu_sim *gpgpu_trace_sim_init_perf_model(int argc, const char *argv[],
                                            gpgpu_context *m_gpgpu_context,
                                            class trace_config *m_config, int num_gpu);
 int parse_num_gpus(int argc, const char **argv);
+cxl_memory_buffer_config *parse_cxl_config(int argc, const char **argv);
 bool check_scheduling(std::string kernel_name);
 bool check_sync_device_finished(int num_gpus);
 bool check_all_gpu_sim_active(int num_gpus);
 void cycle_synchronizer(int num_gpus, int *local_cycle);
 void do_gpu_perf(int num_gpus, trace_config tconfig, gpgpu_context *m_gpgpu_context, gpgpu_sim *m_gpgpu_sim);
+void do_cxl_perf(cxl_memory_buffer *m_cxl_memory_buffer);
 
 int main(int argc, const char **argv)
 {
@@ -75,6 +78,7 @@ int main(int argc, const char **argv)
   gpgpu_context *m_gpgpu_contexts[num_gpus];
   trace_config *m_trace_configs[num_gpus];
   gpgpu_sim *m_gpgpu_sims[num_gpus];
+  cxl_memory_buffer *m_cxl_memory_buffer = new cxl_memory_buffer(parse_cxl_config(argc, argv));
   std::vector<std::thread> threads;
   for (int i = 0; i < num_gpus; i++)
   {
@@ -91,6 +95,7 @@ int main(int argc, const char **argv)
     exit_gpus[false];
     threads.push_back(std::thread(do_gpu_perf, num_gpus, *m_trace_configs[i], m_gpgpu_contexts[i], m_gpgpu_sims[i]));
   }
+  threads.push_back(std::thread(do_cxl_perf, m_cxl_memory_buffer));
   for (auto &th : threads)
     th.join();
   // we print this message to inform the gpgpu-simulation stats_collect script
@@ -122,7 +127,7 @@ void do_gpu_perf(int num_gpus, trace_config tconfig, gpgpu_context *m_gpgpu_cont
   bool all_gpu_sim_active = true;
   trace_kernel_info_t *kernel_info;
   unsigned int i = 0;
-  do // do cycle 
+  do // do cycle
   {
     cycle_synchronizer(num_gpus, &local_cycle);
 
@@ -176,10 +181,10 @@ void do_gpu_perf(int num_gpus, trace_config tconfig, gpgpu_context *m_gpgpu_cont
       else
         assert(0);
     }
-    
+
     bool active = false;
     bool sim_cycles = false;
-    
+
     // performance simulation
     if (m_gpgpu_sim->active())
     {
@@ -207,7 +212,7 @@ void do_gpu_perf(int num_gpus, trace_config tconfig, gpgpu_context *m_gpgpu_cont
     next_launch = !active && check_sync_device_finished(num_gpus);
     if (next_launch)
       i++;
-  
+
     sim_active = !(i == commandlist.size() && next_launch);
     if (!sim_active)
     {
@@ -222,6 +227,9 @@ void do_gpu_perf(int num_gpus, trace_config tconfig, gpgpu_context *m_gpgpu_cont
   printf("FINISHED - %d\n", m_gpgpu_sim->get_gpu_num());
 }
 
+void do_cxl_perf(cxl_memory_buffer *m_cxl_memory_buffer)
+{
+}
 gpgpu_sim *gpgpu_trace_sim_init_perf_model(int argc, const char *argv[],
                                            gpgpu_context *m_gpgpu_context,
                                            trace_config *m_config, int gpu_num)
@@ -260,22 +268,23 @@ gpgpu_sim *gpgpu_trace_sim_init_perf_model(int argc, const char *argv[],
   return m_gpgpu_context->the_gpgpusim->g_the_gpu;
 }
 
-void cycle_synchronizer(int num_gpus, int *local_cycle){
-    //loop synchronizer
-    std::unique_lock<std::mutex> lck(cycle_mtx);
-    ready_counter++;
-    while (ready_counter == num_gpus && *local_cycle == cycle_counter)
-    {
-      cycle_sync.notify_all();
-      cycle_counter++;
-      ready_counter = 0;
-    }
-    while (ready_counter < num_gpus && *local_cycle == cycle_counter)
-    {
-      cycle_sync.wait(lck);
-    }
-    lck.unlock();
-    (*local_cycle)++;
+void cycle_synchronizer(int num_gpus, int *local_cycle)
+{
+  //loop synchronizer
+  std::unique_lock<std::mutex> lck(cycle_mtx);
+  ready_counter++;
+  while (ready_counter == num_gpus && *local_cycle == cycle_counter)
+  {
+    cycle_sync.notify_all();
+    cycle_counter++;
+    ready_counter = 0;
+  }
+  while (ready_counter < num_gpus && *local_cycle == cycle_counter)
+  {
+    cycle_sync.wait(lck);
+  }
+  lck.unlock();
+  (*local_cycle)++;
 }
 
 int parse_num_gpus(int argc, const char **argv)
@@ -291,9 +300,22 @@ int parse_num_gpus(int argc, const char **argv)
   }
   return num_gpus;
 }
+cxl_memory_buffer_config *parse_cxl_config(int argc, const char **argv)
+{
+  std::string config_path;
+  for (int i = 1; i < argc - 1; i++)
+  {
+    if (std::string(argv[i]) == "-cxl_config")
+    {
+      config_path = std::string(argv[i + 1]);
+      return new cxl_memory_buffer_config(config_path);
+    }
+  }
+  return NULL;
+}
 
 //Checking kernel scheduling
-//If schedule commands have decvice_sync, set Wating_gpus 
+//If schedule commands have decvice_sync, set Wating_gpus
 bool check_scheduling(std::string kernel_name)
 {
   kernel_name = kernel_name.erase(0, kernel_name.find_last_of('/') + 1);
@@ -324,7 +346,7 @@ bool check_sync_device_finished(int num_gpus)
   return !finished;
 }
 
-//return false when all gpu exited 
+//return false when all gpu exited
 bool check_all_gpu_sim_active(int num_gpus)
 {
   bool finished = true;
