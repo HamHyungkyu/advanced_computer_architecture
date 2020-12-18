@@ -57,7 +57,7 @@ public:
   virtual void* Pop(unsigned ouput_deviceID);
 
   //hyunuk
-  virtual void* Top(unsigned output_deviceID);
+  // virtual void* Top(unsigned output_deviceID);
 
   virtual void Advance();
   virtual bool Busy() const;

@@ -57,6 +57,7 @@
 
 //hyunuk
 #include "page_manager.h"
+#include "NVLink.h"
 
 #define NO_OP_FLAG 0xFF
 
@@ -2355,6 +2356,10 @@ class simt_core_cluster {
                               unsigned long long &total) const;
   virtual void create_shader_core_ctx() = 0;
 
+  //hyunuk
+  page_manager* m_page_manager;
+  NVLink *m_link;
+
  protected:
   unsigned m_cluster_id;
   gpgpu_sim *m_gpu;
@@ -2368,8 +2373,6 @@ class simt_core_cluster {
   std::list<unsigned> m_core_sim_order;
   std::list<mem_fetch *> m_response_fifo;
 
-  page_manager* m_page_manager;
-  NVLink *m_link;
 };
 
 class exec_simt_core_cluster : public simt_core_cluster {

@@ -11,7 +11,7 @@ void page_manager::alloc_page(unsigned long long addr, page_location loc) {
    unsigned long long vpn_for_req = addr >> 12;
 
    if (loc == page_location::GPU) {
-      if (gpu_full) {
+      if (gpu_full()) {
          assert(0);//
       }
       gpu_pages++;
