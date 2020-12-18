@@ -854,12 +854,13 @@ void gpgpu_sim::stop_all_running_kernels()
 void exec_gpgpu_sim::createSIMTCluster()
 {
   m_cluster = new simt_core_cluster *[m_shader_config->n_simt_clusters];
-  for (unsigned i = 0; i < m_shader_config->n_simt_clusters; i++)
+  for (unsigned i = 0; i < m_shader_config->n_simt_clusters; i++) {
     m_cluster[i] =
         new exec_simt_core_cluster(this, i, m_shader_config, m_memory_config,
                                    m_shader_stats, m_memory_stats);
     //hyunuk
-    m_cluster[i]->m_page_manager = this->m_page_manager;
+    m_cluster[i]->m_page_manager = &this->m_page_manager;
+  }
 }
 
 gpgpu_sim::gpgpu_sim(const gpgpu_sim_config &config, gpgpu_context *ctx)
@@ -1079,7 +1080,7 @@ void gpgpu_sim::init()
   gpu_sim_cycle_parition_util = 0;
 
   //hyunuk
-  m_page_manager.set_max_gpu_pages()
+  m_page_manager.set_max_gpu_pages(-1);
 
   reinit_clock_domains();
   gpgpu_ctx->func_sim->set_param_gpgpu_num_shaders(m_config.num_shader());
@@ -1965,19 +1966,18 @@ void gpgpu_sim::cycle()
 
       unsigned response_size =
             mf->get_is_write() ? mf->get_ctrl_size() : mf->size();
-        if (::icnt_has_buffer(this->get_gpu_num(), m_shader_config->mem2device(src) + , response_size))
-        {
-          // if (!mf->get_is_write())
-          mf->set_return_timestamp(gpu_sim_cycle + gpu_tot_sim_cycle);
-          mf->set_status(IN_ICNT_TO_SHADER, gpu_sim_cycle + gpu_tot_sim_cycle);
-          ::icnt_push(this->get_gpu_num(), m_shader_config->mem2device(src), mf->get_tpc(), mf,
-                      response_size);
-          m_link->to_GPU_pop();
-        }
-        else
-        {
-          gpu_stall_icnt2sh++;
-        }
+      if (::icnt_has_buffer(this->get_gpu_num(), m_shader_config->mem2device(src), response_size))
+      {
+        // if (!mf->get_is_write())
+        mf->set_return_timestamp(gpu_sim_cycle + gpu_tot_sim_cycle);
+        mf->set_status(IN_ICNT_TO_SHADER, gpu_sim_cycle + gpu_tot_sim_cycle);
+        ::icnt_push(this->get_gpu_num(), m_shader_config->mem2device(src), mf->get_tpc(), mf,
+                    response_size);
+        m_link->to_GPU_pop();
+      }
+      else
+      {
+        gpu_stall_icnt2sh++;
       }
     }
   }
@@ -2050,7 +2050,7 @@ void gpgpu_sim::cycle()
     int src = m_memory_config->m_n_mem_sub_partition;
     if (!m_link->from_GPU_full()) {
       mem_fetch* mf = (mem_fetch *)icnt_pop(this->get_gpu_num(), m_shader_config->mem2device(src));
-      m_link->from_GPU_push(mf);
+      m_link->push_from_GPU(mf);
     }
     m_link->cycle();
   }

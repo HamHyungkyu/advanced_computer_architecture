@@ -41,7 +41,7 @@
 #include "shader.h"
 
 //hyunuk
-#include "page_manager.h"
+//#include "page_manager.h"
 
 // constants for statistics printouts
 #define GPU_RSTAT_SHD_INFO 0x1
@@ -410,9 +410,6 @@ public:
 
   bool flush_l1() const { return gpgpu_flush_l1_cache; }
 
-
-  //hyunuk
-  page_manager m_page_manager;
 private:
   void init_clock_domains(void);
 
@@ -624,6 +621,9 @@ public:
 
   // backward pointer
   class gpgpu_context *gpgpu_ctx;
+
+  //hyunuk
+  page_manager m_page_manager;
 
 private:
   FILE *output_file;

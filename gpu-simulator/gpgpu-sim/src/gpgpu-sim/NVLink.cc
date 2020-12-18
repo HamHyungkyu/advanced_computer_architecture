@@ -49,12 +49,35 @@ mem_fetch* NVLink::from_ramulator_pop() {
    return from_ramulator->pop();
 }
 
+mem_fetch* NVLink::to_GPU_pop() {
+   return to_GPU->pop();
+}
+
+mem_fetch* NVLink::to_ramulator_pop() {
+   return to_ramulator->pop();
+}
+
 void NVLink::push_from_GPU(mem_fetch* mf) {
    from_GPU->push(mf);
 }
 
+
+bool NVLink::to_GPU_empty() {
+   return to_GPU->empty();
+}
+bool NVLink::to_ramulator_empty() {
+   return to_ramulator->empty();
+}
+
 void NVLink::push_from_ramulator(mem_fetch* mf) {
    from_ramulator->push(mf);
+}
+
+mem_fetch* NVLink::to_GPU_top() {
+   return to_GPU->top();
+}
+mem_fetch* NVLink::to_ramulator_top() {
+   return to_ramulator->top();
 }
 
 void NVLink::cycle() {

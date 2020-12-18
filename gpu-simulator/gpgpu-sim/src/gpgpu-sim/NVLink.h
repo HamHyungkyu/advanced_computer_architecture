@@ -27,8 +27,17 @@ public:
    mem_fetch* from_GPU_pop(); 
    mem_fetch* from_ramulator_pop();
 
+   mem_fetch* to_GPU_pop(); 
+   mem_fetch* to_ramulator_pop();
+
    void push_from_GPU(mem_fetch* mf);
    void push_from_ramulator(mem_fetch* mf);
+
+   bool to_GPU_empty(); 
+   bool to_ramulator_empty();
+   
+   mem_fetch* to_GPU_top(); 
+   mem_fetch* to_ramulator_top();
 
    void cycle();
 
