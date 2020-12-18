@@ -39,7 +39,7 @@ enum mf_type {
   READ_REPLY,  // send to shader
   WRITE_ACK,
   CXL_READ_REQUEST,
-  CXL_WRITE_REQUEST
+  CXL_WRITE_REQUEST,
   CXL_READ_REPLY,
   CXL_WRITE_ACK
 };
@@ -62,8 +62,8 @@ class mem_fetch {
             const memory_config *config, unsigned long long cycle,
             mem_fetch *original_mf = NULL, mem_fetch *original_wr_mf = NULL);
   mem_fetch(const mem_access_t &access, const warp_inst_t *inst,
-            unsigned ctrl_size, unsigned wid, unsigned sid, unsigned tpc, int gpu_id,
-            const memory_config *config, unsigned long long cycle,
+            unsigned ctrl_size, unsigned wid, unsigned sid, unsigned tpc,
+            int gpu_id, const memory_config *config, unsigned long long cycle,
             mem_fetch *original_mf = NULL, mem_fetch *original_wr_mf = NULL);
   ~mem_fetch();
 
@@ -90,6 +90,11 @@ class mem_fetch {
   }
   unsigned get_data_size() const { return m_data_size; }
   void set_data_size(unsigned size) { m_data_size = size; }
+  // Todo: contorl dirty mask
+  std::bitset<SECTOR_CHUNCK_SIZE> get_dirty_mask() { return m_dirty_mask; }
+  void set_dirty_mask(std::bitset<SECTOR_CHUNCK_SIZE> dirty_mask) {
+    m_dirty_mask = dirty_mask;
+  }
   unsigned get_ctrl_size() const { return m_ctrl_size; }
   unsigned size() const { return m_data_size + m_ctrl_size; }
   bool is_write() { return m_access.is_write(); }
@@ -109,7 +114,7 @@ class mem_fetch {
   enum mf_type get_type() const { return m_type; }
   bool isatomic() const;
 
-  void set_gpu_id(int gpu_id) { m_gpu_id = gpu_id; } 
+  void set_gpu_id(int gpu_id) { m_gpu_id = gpu_id; }
   void set_return_timestamp(unsigned t) { m_timestamp2 = t; }
   void set_icnt_receive_time(unsigned t) { m_icnt_receive_time = t; }
   unsigned get_timestamp() const { return m_timestamp; }
@@ -152,6 +157,8 @@ class mem_fetch {
   
   //hyunuk
   unsigned long long m_link_depart;
+
+  std::bitset<SECTOR_CHUNCK_SIZE> m_dirty_mask;
 
   // where is this request now?
   enum mem_fetch_status m_status;

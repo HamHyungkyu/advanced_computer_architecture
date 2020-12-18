@@ -1,10 +1,10 @@
 #ifndef RAMULATOR_H_
 #define RAMULATOR_H_
 
-#include <string>
 #include <deque>
-#include <map>
 #include <functional>
+#include <map>
+#include <string>
 
 #include "MemoryFactory.h"
 //#include "Memory.h"
@@ -18,59 +18,54 @@
 //#include "../gpgpu-sim/l2cache.h"
 #include "../gpgpu-sim/gpu-sim.h"
 
-//extern std::vector<std::pair<unsigned long, unsigned long>> malloc_list;
+// extern std::vector<std::pair<unsigned long, unsigned long>> malloc_list;
 
-namespace ramulator{
+namespace ramulator {
 class Request;
 class MemoryBase;
-}
+}  // namespace ramulator
 
-//using namespace ramulator;
+// using namespace ramulator;
 
 class Ramulator {
-public:
-  Ramulator(unsigned partition_id, 
-            const struct memory_config* config,
-            class memory_stats_t *stats, 
-            unsigned long long *gpu_sim_cycle,
-            unsigned long long *gpu_tot_sim_cycle,
-            unsigned num_cores,
-            std::string ramulator_config,
-            class memory_partition_unit *mp);
+ public:
+  // Todo: memory stats
+  // Ramulator(unsigned memory_id, class memory_stats_t* stats,
+  //           unsigned long long* cycles, unsigned num_cores,
+  //           std::string ramulator_config);
+  Ramulator(unsigned memory_id, unsigned long long* cycles, unsigned num_cores,
+            std::string ramulator_config);
   ~Ramulator();
   // check whether the read or write queue is available
   bool full(bool is_write, unsigned long req_addr);
   void cycle();
 
-  void finish(FILE* fp, unsigned memory_partition_id);
-  void print(FILE* fp, unsigned memory_partition_id);
+  void finish(FILE* fp, unsigned m_id);
+  void print(FILE* fp, unsigned m_id);
 
   // push mem_fetcth object into Ramulator wrapper
   void push(class mem_fetch* mf);
 
   mem_fetch* return_queue_top() const;
   mem_fetch* return_queue_pop() const;
-  bool returnq_full() const; 
+  bool returnq_full() const;
 
   double tCK;
 
-private:
+ private:
   std::string std_name;
   ramulator::MemoryBase* memory;
 
-  fifo_pipeline<mem_fetch> *rwq;
-  fifo_pipeline<mem_fetch> *returnq;
-  fifo_pipeline<mem_fetch> *from_gpgpusim;
+  fifo_pipeline<mem_fetch>* rwq;
+  fifo_pipeline<mem_fetch>* returnq;
+  fifo_pipeline<mem_fetch>* from_gpgpusim;
 
   std::map<unsigned long long, std::deque<mem_fetch*>> reads;
   std::map<unsigned long long, std::deque<mem_fetch*>> writes;
 
   unsigned num_cores;
   unsigned m_id;
-  unsigned long long *gpu_sim_cycle;
-  unsigned long long *gpu_tot_sim_cycle;
-
-  memory_partition_unit *m_memory_partition_unit;
+  unsigned long long* cycles;
 
   // callback functions
   std::function<void(ramulator::Request&)> read_cb_func;
@@ -78,14 +73,12 @@ private:
   void readComplete(ramulator::Request& req);
   void writeComplete(ramulator::Request& req);
 
-  // Config - 
+  // Config -
   // it parses options from ramulator_config file when it is constructed
   ramulator::Config ramulator_configs;
-  class memory_stats_t* m_stats;
-  const struct memory_config* m_config;
+  // class memory_stats_t* m_stats;
 
   bool send(ramulator::Request req);
 };
-
 
 #endif

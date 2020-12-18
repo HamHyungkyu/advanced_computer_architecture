@@ -718,6 +718,7 @@ class memory_space_t {
     return (m_type == local_space) || (m_type == param_space_local);
   }
   bool is_global() const { return (m_type == global_space); }
+
  private:
   enum _memory_space_t m_type;
   unsigned m_bank;  // n in ".const[n]"; note .const == .const[0] (see PTX 2.1
@@ -731,12 +732,12 @@ const unsigned SECTOR_SIZE = 32;        // sector is 32 bytes width
 typedef std::bitset<SECTOR_CHUNCK_SIZE> mem_access_sector_mask_t;
 #define NO_PARTIAL_WRITE (mem_access_byte_mask_t())
 
-#define MEM_ACCESS_TYPE_TUP_DEF                                         \
-  MA_TUP_BEGIN(mem_access_type)                                         \
-  MA_TUP(GLOBAL_ACC_R), MA_TUP(LOCAL_ACC_R), MA_TUP(CONST_ACC_R),       \
-      MA_TUP(TEXTURE_ACC_R), MA_TUP(GLOBAL_ACC_W), MA_TUP(LOCAL_ACC_W), \
-      MA_TUP(L1_WRBK_ACC), MA_TUP(L2_WRBK_ACC), MA_TUP(INST_ACC_R),     \
-      MA_TUP(L1_WR_ALLOC_R), MA_TUP(L2_WR_ALLOC_R),                     \
+#define MEM_ACCESS_TYPE_TUP_DEF                                            \
+  MA_TUP_BEGIN(mem_access_type)                                            \
+  MA_TUP(GLOBAL_ACC_R), MA_TUP(LOCAL_ACC_R), MA_TUP(CONST_ACC_R),          \
+      MA_TUP(TEXTURE_ACC_R), MA_TUP(GLOBAL_ACC_W), MA_TUP(LOCAL_ACC_W),    \
+      MA_TUP(L1_WRBK_ACC), MA_TUP(L2_WRBK_ACC), MA_TUP(INST_ACC_R),        \
+      MA_TUP(L1_WR_ALLOC_R), MA_TUP(L2_WR_ALLOC_R),                        \
       MA_TUP(NUM_MEM_ACCESS_TYPE), MA_TUP(CXL_ACC_NDP), MA_TUP(CXL_ACC_R), \
       MA_TUP(CXL_ACC_W) MA_TUP_END(mem_access_type)
 
@@ -838,11 +839,6 @@ class mem_access_t {
       case CXL_ACC_NDP:
         fprintf(fp, "CXL_NDP");
         break;
-      case REMOTE_ACC_R:
-        fprintf(fp, "REMOTE_R");
-        break;
-      case REMOTE_ACC_W:
-        fprintf(fp, "REMOTE_W");
       default:
         fprintf(fp, "unknown ");
         break;
@@ -941,9 +937,7 @@ class inst_t {
     return (op == STORE_OP || op == TENSOR_CORE_STORE_OP ||
             memory_op == memory_store);
   }
-  bool is_cxl() const {
-    return (op == CXL_NDP_OP);
-  }
+  bool is_cxl() const { return (op == CXL_NDP_OP); }
   unsigned get_num_operands() const { return num_operands; }
   unsigned get_num_regs() const { return num_regs; }
   void set_num_regs(unsigned num) { num_regs = num; }
