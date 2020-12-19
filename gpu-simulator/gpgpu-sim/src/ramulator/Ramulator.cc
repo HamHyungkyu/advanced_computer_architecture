@@ -52,7 +52,7 @@ Ramulator::Ramulator(unsigned memory_id, unsigned long long* cycles,
   returnq = new fifo_pipeline<mem_fetch>(
       "ramulatorreturnq", 0,
       cxl_dram_return_queue_size == 0 ? 1024 : cxl_dram_return_queue_size);
-  from_gpgpusim = new fifo_pipeline<mem_fetch>("fromgpgpusim", 0, 2);
+  from_gpgpusim = new fifo_pipeline<mem_fetch>("fromgpgpusim", 0, 1024);
 
   memory =
       name_to_func[std_name](ramulator_configs, (int)SECTOR_SIZE, m_id, rwq);
@@ -73,19 +73,15 @@ void Ramulator::cycle() {
   if (!returnq_full()) {
     mem_fetch* mf = rwq->pop();
     if (mf) {
-      // if (m_config->dram_atom_size >= mf->get_data_size()) {
-      mf->set_status(IN_PARTITION_MC_RETURNQ, (*cycles));
-      // Todo :: mf type
+      // Todo :: after define migration access type 
       if (mf->get_access_type() != L1_WRBK_ACC &&
           mf->get_access_type() != L2_WRBK_ACC) {
         mf->set_reply();
         returnq->push(mf);
       } else {
-        // Todo: convert cxl
-        // m_memory_partition_unit->set_done(mf);
+        // Todo :: after define migration access type 
         delete mf;
       }
-      //}
     }
   }
 
@@ -95,31 +91,23 @@ void Ramulator::cycle() {
 
     if (mf->get_type() == READ_REQUEST) {
       assert(mf->is_write() == false);
-      assert(mf->get_sid() < (unsigned)num_cores);
+      assert(mf->get_gpu_id() < (unsigned)num_cores);
       // Requested data size must be 32
       assert(mf->get_data_size() == 32);
 
-      // Request req(mf->get_tlx_addr().channel_removed_addr,
-      //             Request::Type::R_READ, read_cb_func, mf->get_sid(), mf);
-      // req.mf = mf;
-      // accepted = send(req);
+      Request req(mf->get_addr(),
+                  Request::Type::R_READ, read_cb_func, mf->get_gpu_id(), mf);
+      req.mf = mf;
+      accepted = send(req);
     } else if (mf->get_type() == WRITE_REQUEST) {
       // GPGPU-sim will send write request only for write back request
       // channel_removed_addr: the address bits of channel part are truncated
       // channel_included_addr: the address bits of channel part are not
       // truncated
-      // if ((unsigned)mf->get_sid() == -1) {
-      //   Request req(mf->get_tlx_addr().channel_removed_addr,
-      //               Request::Type::R_WRITE, write_cb_func, num_cores, mf);
-      //   // req.mf = mf;
-      //   accepted = send(req);
-      // } else {
-      //   Request req(mf->get_tlx_addr().channel_removed_addr,
-      //               Request::Type::R_WRITE, write_cb_func, mf->get_sid(),
-      //               mf);
-      //   // req.mf = mf;
-      //   accepted = send(req);
-      // }
+      Request req(mf->get_addr(),
+                  Request::Type::R_WRITE, write_cb_func, mf->get_gpu_id(),
+                  mf);
+      accepted = send(req);
     }
 
     assert(accepted);
@@ -143,7 +131,7 @@ void Ramulator::push(class mem_fetch* mf) {
 bool Ramulator::returnq_full() const { return returnq->full(); }
 mem_fetch* Ramulator::return_queue_top() const { return returnq->top(); }
 mem_fetch* Ramulator::return_queue_pop() const { return returnq->pop(); }
-
+void Ramulator::return_queue_push_back(mem_fetch* mf) { returnq->push(mf);}
 void Ramulator::readComplete(Request& req) {
   assert(req.mf != nullptr);
   rwq->push(req.mf);

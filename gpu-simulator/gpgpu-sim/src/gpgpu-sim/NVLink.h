@@ -18,40 +18,40 @@ class NVLink {
   ~NVLink();
 
   bool from_GPU_full();
-  bool from_ramulator_full();
+  bool from_cxl_buffer_full();
 
   bool from_GPU_empty();
-  bool from_ramulator_empty();
+  bool from_cxl_buffer_empty();
 
   mem_fetch* from_GPU_top();
-  mem_fetch* from_ramulator_top();
+  mem_fetch* from_cxl_buffer_top();
 
   mem_fetch* from_GPU_pop();
-  mem_fetch* from_ramulator_pop();
+  mem_fetch* from_cxl_buffer_pop();
 
   mem_fetch* to_GPU_pop();
-  mem_fetch* to_ramulator_pop();
+  mem_fetch* to_cxl_buffer_pop();
 
   void push_from_GPU(mem_fetch* mf);
-  void push_from_ramulator(mem_fetch* mf);
+  void push_from_cxl_buffer(mem_fetch* mf);
 
   bool to_GPU_empty();
-  bool to_ramulator_empty();
+  bool to_cxl_buffer_empty();
 
   mem_fetch* to_GPU_top();
-  mem_fetch* to_ramulator_top();
+  mem_fetch* to_cxl_buffer_top();
 
   void cycle();
 
  private:
   fifo_pipeline<mem_fetch>* from_GPU;
-  fifo_pipeline<mem_fetch>* from_ramulator;
+  fifo_pipeline<mem_fetch>* from_cxl_buffer;
 
   fifo_pipeline<mem_fetch>* to_GPU_waiting;
-  fifo_pipeline<mem_fetch>* to_ramulator_waiting;
+  fifo_pipeline<mem_fetch>* to_cxl_buffer_waiting;
 
   fifo_pipeline<mem_fetch>* to_GPU;
-  fifo_pipeline<mem_fetch>* to_ramulator;
+  fifo_pipeline<mem_fetch>* to_cxl_buffer;
 
   int gpu_id;  // GPU id
   unsigned long long clk = 0;
