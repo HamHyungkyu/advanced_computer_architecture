@@ -118,6 +118,7 @@ class Request {
       stat = Status::NORMAL_READ;
     } else if (type == Type::R_WRITE) {
       stat = Status::NORMAL_WRITE;
+      /*
       auto dirty_mask = mf->get_dirty_mask();
       assert(dirty_mask.any());
       for (unsigned long i = 0; i < dirty_mask.size(); ++i) {
@@ -129,6 +130,8 @@ class Request {
         }
       }
       assert(dirty_mask.count() * SECTOR_SIZE == mf->get_data_size());
+      */
+      assert(mf->get_data_size() == SECTOR_SIZE);
     }
   }
 

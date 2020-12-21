@@ -85,7 +85,7 @@ void NVLink::cycle() {
    if (!from_GPU->empty()) {
       if (!to_cxl_buffer_waiting->full()) {
          mem_fetch* mf = from_GPU->pop();
-         
+         //assert(mf!=NULL);
          mf->set_link_depart(clk + this->latency);
          to_cxl_buffer_waiting->push(mf);
       }

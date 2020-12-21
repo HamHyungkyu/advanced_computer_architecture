@@ -1,5 +1,6 @@
 #include <list>
 #include <cassert>
+#include <iostream>
 
 #define PAGESIZE 4096
 
@@ -16,7 +17,9 @@ class page_manager {
 public:
    bool gpu_full();
 
-   void alloc_page(unsigned long long addr, page_location loc=page_location::GPU);
+   void print_hi() {std::cout << "hyunuk" << std::endl;}
+
+   void alloc_page(unsigned long long addr, page_location& loc);
 
    page_location is_allocated(unsigned long long addr);
 

@@ -1,6 +1,8 @@
 #ifndef NVLINK_H
 #define NVLINK_H
 //#include "Request.h"
+#include <iostream>
+
 #include "mem_fetch.h"
 
 #include "delayqueue.h"

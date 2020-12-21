@@ -25,8 +25,10 @@ void AddrDecoder<HBM>::setAddrMask(const std::string& addrMaskString,
                                    unsigned long &totalBits,
                                    const int *org_entry_count) {
   std::cout << addrMaskString << std::endl;
+  /*
   assert((addrMaskString.length() - ((64 / 8) - 1)) == 64
          && "wrong dram address mask format");
+  */
   // init all bits (make all bits have zero)
   for (int i = 0; i < int(HBM::Level::MAX); ++i)
     addrMask[i].reset();
@@ -65,6 +67,10 @@ void AddrDecoder<HBM>::setAddrMask(const std::string& addrMaskString,
         break;
       case 'R':
         addrMask[int(HBM::Level::Row)].set(pos, 1);
+        totalBits++;
+        break;
+      case 'K':
+        addrMask[int(HBM::Level::Channel)].set(pos, 1);
         totalBits++;
         break;
       default:

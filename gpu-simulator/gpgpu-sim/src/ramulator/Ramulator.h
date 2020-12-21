@@ -50,6 +50,7 @@ class Ramulator {
   mem_fetch* return_queue_pop() const;
   void return_queue_push_back(mem_fetch*);
   bool returnq_full() const;
+  bool from_gpgpusim_full() {return from_gpgpusim->full();}
 
   double tCK;
 

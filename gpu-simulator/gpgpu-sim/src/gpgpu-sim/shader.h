@@ -2357,7 +2357,7 @@ class simt_core_cluster {
   virtual void create_shader_core_ctx() = 0;
 
   //hyunuk
-  page_manager* m_page_manager;
+  page_manager* m_page_manager = NULL;
   NVLink *m_link;
 
  protected:

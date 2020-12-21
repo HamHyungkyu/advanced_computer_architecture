@@ -40,6 +40,7 @@ Ramulator::Ramulator(unsigned memory_id, unsigned long long* cycles,
   int cxl_dram_return_queue_size = 0;
   ramulator_configs.set_core_num(num_cores);
   std_name = ramulator_configs["standard"];
+  
   assert(name_to_func.find(std_name) != name_to_func.end() &&
          "unrecognized standard name");
 
@@ -85,11 +86,39 @@ void Ramulator::cycle() {
     }
   }
 
+  // bool accepted = false;
+  // while (!from_gpgpusim->empty()) {
+  //   mem_fetch* mf = from_gpgpusim->pop();
+  //   if (mf->get_type() == READ_REQUEST) {
+  //     assert(mf->is_write() == false);
+  //     assert(mf->get_gpu_id() < (unsigned)num_cores);
+  //     // Requested data size must be 32
+  //     assert(mf->get_data_size() == 32);
+
+  //     Request req(mf->get_addr(),
+  //                 Request::Type::R_READ, read_cb_func, mf->get_gpu_id(), mf);
+  //     req.mf = mf;
+  //     accepted = send(req);
+  //   } else if (mf->get_type() == WRITE_REQUEST) {
+  //     // GPGPU-sim will send write request only for write back request
+  //     // channel_removed_addr: the address bits of channel part are truncated
+  //     // channel_included_addr: the address bits of channel part are not
+  //     // truncated
+  //     Request req(mf->get_addr(),
+  //                 Request::Type::R_WRITE, write_cb_func, mf->get_gpu_id(),
+  //                 mf);
+  //     accepted = send(req);
+  //   }
+
+  //   assert(accepted);
+  // }
+
   bool accepted = false;
   while (!from_gpgpusim->empty()) {
-    mem_fetch* mf = from_gpgpusim->pop();
-
-    if (mf->get_type() == READ_REQUEST) {
+    //mem_fetch* mf = from_gpgpusim->pop();
+    mem_fetch* mf = from_gpgpusim->top();
+    if (mf) {
+      if (mf->get_type() == READ_REQUEST) {
       assert(mf->is_write() == false);
       assert(mf->get_gpu_id() < (unsigned)num_cores);
       // Requested data size must be 32
@@ -99,18 +128,24 @@ void Ramulator::cycle() {
                   Request::Type::R_READ, read_cb_func, mf->get_gpu_id(), mf);
       req.mf = mf;
       accepted = send(req);
-    } else if (mf->get_type() == WRITE_REQUEST) {
-      // GPGPU-sim will send write request only for write back request
-      // channel_removed_addr: the address bits of channel part are truncated
-      // channel_included_addr: the address bits of channel part are not
-      // truncated
-      Request req(mf->get_addr(),
-                  Request::Type::R_WRITE, write_cb_func, mf->get_gpu_id(),
-                  mf);
-      accepted = send(req);
-    }
+      } else if (mf->get_type() == WRITE_REQUEST) {
+        // GPGPU-sim will send write request only for write back request
+        // channel_removed_addr: the address bits of channel part are truncated
+        // channel_included_addr: the address bits of channel part are not
+        // truncated
+        Request req(mf->get_addr(),
+                    Request::Type::R_WRITE, write_cb_func, mf->get_gpu_id(),
+                    mf);
+        accepted = send(req);
+      }
 
-    assert(accepted);
+      if (accepted)
+        from_gpgpusim->pop();
+
+      
+    }    
+    if (!accepted)
+      break;
   }
 
   // cycle ramulator
@@ -120,7 +155,6 @@ void Ramulator::cycle() {
 bool Ramulator::send(Request req) { return memory->send(req); }
 
 void Ramulator::push(class mem_fetch* mf) {
-  mf->set_status(IN_PARTITION_MC_INTERFACE_QUEUE, (*cycles));
   from_gpgpusim->push(mf);
 
   // Todo:memory stats

@@ -7,7 +7,9 @@
 
 #include "Config.h"
 #include "Memory.h"
+#include "../gpgpu-sim/delayqueue.h"
 
+#include <typeinfo>
 
 using namespace std;
 
@@ -21,7 +23,7 @@ public:
     {
         int channel_unit = spec->prefetch_size * spec->channel_width / 8;
         int gang_number = cacheline / channel_unit;
-        
+
         assert(gang_number >= 1 && 
             "cacheline size must be greater or equal to minimum channel width");
         
@@ -40,7 +42,7 @@ public:
       if (default_channels == 0) default_channels = channels;
       if (default_ranks == 0) default_ranks = ranks;
 
-      AddrDecoder<T>* addrDecoder = new AddrDecoder<T>(configs, spec, m_id);
+      //AddrDecoder<T>* addrDecoder = new AddrDecoder<T>(configs, spec, m_id);
       vector<Controller<T> *> ctrls;
       for (int c = 0; c < channels; c++){
         // sungjun: DRAM constructor receive m_id to print memory partition
@@ -52,11 +54,13 @@ public:
         // after this line, all children statistic values are built
         //Controller<T>* ctrl = new Controller<T>(configs, channel, queue_size, use_refresh, rwq);
         //ctrls.push_back(new Controller<T>(configs, channel, rwq, app_name));
-        ctrls.push_back(new Controller<T>(configs, channel, rwq, addrDecoder));
+        //ctrls.push_back(new Controller<T>(configs, channel, rwq, addrDecoder));
+        ctrls.push_back(new Controller<T>(configs, channel, rwq));
         //ctrls.push_back(ctrl);
       }
       std::cout << "Memory instance will be instantiated" << std::endl;
-      return new Memory<T>(configs, ctrls, addrDecoder);
+      //return new Memory<T>(configs, ctrls, addrDecoder);
+      return new Memory<T>(configs, ctrls);
     }
 
     static void validate(int channels, int ranks, const Config& configs) {
@@ -76,6 +80,9 @@ public:
       const string& speed_name = configs["speed"];
 
       T *spec = new T(org_name, speed_name);
+    //   std::cout <<"spec: " << spec->prefetch_size << std::endl;
+    //   std::cout << "org: " << configs["org"] << std::endl;
+    //   std::cout << "speed: " << configs["speed"] << std::endl;
 
       extend_channel_width(spec, cacheline);
 

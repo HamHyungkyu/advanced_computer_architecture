@@ -858,8 +858,6 @@ void exec_gpgpu_sim::createSIMTCluster()
     m_cluster[i] =
         new exec_simt_core_cluster(this, i, m_shader_config, m_memory_config,
                                    m_shader_stats, m_memory_stats);
-    //hyunuk
-    m_cluster[i]->m_page_manager = &this->m_page_manager;
   }
 }
 
@@ -1080,7 +1078,7 @@ void gpgpu_sim::init()
   gpu_sim_cycle_parition_util = 0;
 
   //hyunuk
-  m_page_manager.set_max_gpu_pages(-1);
+  m_page_manager.set_max_gpu_pages(10);
 
   reinit_clock_domains();
   gpgpu_ctx->func_sim->set_param_gpgpu_num_shaders(m_config.num_shader());
@@ -1962,6 +1960,7 @@ void gpgpu_sim::cycle()
 
     if (!m_link->to_GPU_empty()) {
       mem_fetch *mf = m_link->to_GPU_top();
+      
       int src = m_memory_config->m_n_mem_sub_partition;
 
       unsigned response_size =
@@ -2050,7 +2049,8 @@ void gpgpu_sim::cycle()
     int src = m_memory_config->m_n_mem_sub_partition;
     if (!m_link->from_GPU_full()) {
       mem_fetch* mf = (mem_fetch *)icnt_pop(this->get_gpu_num(), m_shader_config->mem2device(src));
-      m_link->push_from_GPU(mf);
+      if (mf)
+        m_link->push_from_GPU(mf);
     }
     m_link->cycle();
   }

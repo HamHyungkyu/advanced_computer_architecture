@@ -19,7 +19,7 @@ class cxl_memory_buffer {
   unsigned long long memory_cycles;
   double gpu_memory_cycle_ratio;
   cxl_memory_buffer_config *m_config;
-  Ramulator *ramulators;
+  Ramulator **ramulators;
   NVLink **nvlinks;
   std::deque<mem_fetch*> overflow_buffer;
 

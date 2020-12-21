@@ -93,9 +93,9 @@ public:
 
     for (int level = 0; level < int(T::Level::MAX); ++level) {
       addr_vec[level] = getLevelAddr(level, addr, addrMask, addrMask_low_high);
-      assert(addr_vec[level] >= 0);
+      //assert(addr_vec[level] >= 0);
     }
-    assert(addr_vec[int(T::Level::Channel)] == 0);
+    //assert(addr_vec[int(T::Level::Channel)] == 0);
 
     return addr_vec;
   }

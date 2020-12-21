@@ -8,7 +8,7 @@
 #include <list>
 #include <string>
 #include <vector>
-#include <iostream>
+
 #include "Config.h"
 #include "DRAM.h"
 #include "Refresh.h"
@@ -16,214 +16,88 @@
 #include "Scheduler.h"
 #include "Statistics.h"
 
+// #include "ALDRAM.h"
+// #include "SALP.h"
+// #include "TLDRAM.h"
 
-#include "HMC.h"
-
-#include "GDDR5.h"
-#include "HBM.h"
-#include "PCM.h"
-
-#include "AddrDecoder.h"
-
-
-#include "../gpgpu-sim/gpu-sim.h"
 #include "../gpgpu-sim/delayqueue.h"
-
-extern std::vector<std::pair<unsigned long, unsigned long>> malloc_list;
-
-//#include "libdrampower/LibDRAMPower.h"
-//#include "xmlparser/MemSpecParser.h"
 
 using namespace std;
 
 namespace ramulator
 {
 
+    extern bool warmup_complete;
+
 template <typename T>
 class Controller
 {
-public:
-    fifo_pipeline<mem_fetch>* rwq;
+protected:
     // For counting bandwidth
+    ScalarStat read_transaction_bytes;
+    ScalarStat write_transaction_bytes;
 
-    // sungjun: finished read and write
-    ScalarStat* idle_cycle;
-    ScalarStat* finished_read;
-    ScalarStat* finished_wr_alloc_r;
-    ScalarStat* finished_write;
-    ScalarStat* finished_write_back;
+    ScalarStat row_hits;
+    ScalarStat row_misses;
+    ScalarStat row_conflicts;
+    VectorStat read_row_hits;
+    VectorStat read_row_misses;
+    VectorStat read_row_conflicts;
+    VectorStat write_row_hits;
+    VectorStat write_row_misses;
+    VectorStat write_row_conflicts;
+    ScalarStat useless_activates;
 
-    ScalarStat* read_transaction_bytes;
-    ScalarStat* write_transaction_bytes;
-    ScalarStat* row_hits;
-    ScalarStat* row_misses;
-    ScalarStat* row_conflicts;
-    VectorStat* read_row_hits;
-    VectorStat* read_row_misses;
-    VectorStat* read_row_conflicts;
-    VectorStat* write_row_hits;
-    VectorStat* write_row_misses;
-    VectorStat* write_row_conflicts;
+    ScalarStat read_latency_avg;
+    ScalarStat read_latency_sum;
 
-    ScalarStat* read_latency_sum;
-    ScalarStat* queueing_latency_sum;
-
-    ScalarStat* req_queue_length_sum;
-    ScalarStat* read_req_queue_length_sum;
-    ScalarStat* write_req_queue_length_sum;
-
-    ScalarStat* num_of_bypassing_read;
+    ScalarStat req_queue_length_avg;
+    ScalarStat req_queue_length_sum;
+    ScalarStat read_req_queue_length_avg;
+    ScalarStat read_req_queue_length_sum;
+    ScalarStat write_req_queue_length_avg;
+    ScalarStat write_req_queue_length_sum;
 
 #ifndef INTEGRATED_WITH_GEM5
-    VectorStat* record_read_hits;
-    VectorStat* record_read_misses;
-    VectorStat* record_read_conflicts;
-    VectorStat* record_write_hits;
-    VectorStat* record_write_misses;
-    VectorStat* record_write_conflicts;
+    VectorStat record_read_hits;
+    VectorStat record_read_misses;
+    VectorStat record_read_conflicts;
+    VectorStat record_write_hits;
+    VectorStat record_write_misses;
+    VectorStat record_write_conflicts;
 #endif
 
-    /* SUNGJUN: comment out DRAM power stats
-    // DRAM power estimation statistics
-
-    ScalarStat act_energy;
-    ScalarStat pre_energy;
-    ScalarStat read_energy;
-    ScalarStat write_energy;
-
-    ScalarStat act_stdby_energy;
-    ScalarStat pre_stdby_energy;
-    ScalarStat idle_energy_act;
-    ScalarStat idle_energy_pre;
-
-    ScalarStat f_act_pd_energy;
-    ScalarStat f_pre_pd_energy;
-    ScalarStat s_act_pd_energy;
-    ScalarStat s_pre_pd_energy;
-    ScalarStat sref_energy;
-    ScalarStat sref_ref_energy;
-    ScalarStat sref_ref_act_energy;
-    ScalarStat sref_ref_pre_energy;
-
-    ScalarStat spup_energy;
-    ScalarStat spup_ref_energy;
-    ScalarStat spup_ref_act_energy;
-    ScalarStat spup_ref_pre_energy;
-    ScalarStat pup_act_energy;
-    ScalarStat pup_pre_energy;
-
-    ScalarStat IO_power;
-    ScalarStat WR_ODT_power;
-    ScalarStat TermRD_power;
-    ScalarStat TermWR_power;
-
-    ScalarStat read_io_energy;
-    ScalarStat write_term_energy;
-    ScalarStat read_oterm_energy;
-    ScalarStat write_oterm_energy;
-    ScalarStat io_term_energy;
-
-    ScalarStat ref_energy;
-
-    ScalarStat total_energy;
-    ScalarStat average_power;
-
-    // drampower counter
-
-    // Number of activate commands
-    ScalarStat numberofacts_s;
-    // Number of precharge commands
-    ScalarStat numberofpres_s;
-    // Number of reads commands
-    ScalarStat numberofreads_s;
-    // Number of writes commands
-    ScalarStat numberofwrites_s;
-    // Number of refresh commands
-    ScalarStat numberofrefs_s;
-    // Number of precharge cycles
-    ScalarStat precycles_s;
-    // Number of active cycles
-    ScalarStat actcycles_s;
-    // Number of Idle cycles in the active state
-    ScalarStat idlecycles_act_s;
-    // Number of Idle cycles in the precharge state
-    ScalarStat idlecycles_pre_s;
-    // Number of fast-exit activate power-downs
-    ScalarStat f_act_pdns_s;
-    // Number of slow-exit activate power-downs
-    ScalarStat s_act_pdns_s;
-    // Number of fast-exit precharged power-downs
-    ScalarStat f_pre_pdns_s;
-    // Number of slow-exit activate power-downs
-    ScalarStat s_pre_pdns_s;
-    // Number of self-refresh commands
-    ScalarStat numberofsrefs_s;
-    // Number of clock cycles in fast-exit activate power-down mode
-    ScalarStat f_act_pdcycles_s;
-    // Number of clock cycles in slow-exit activate power-down mode
-    ScalarStat s_act_pdcycles_s;
-    // Number of clock cycles in fast-exit precharged power-down mode
-    ScalarStat f_pre_pdcycles_s;
-    // Number of clock cycles in slow-exit precharged power-down mode
-    ScalarStat s_pre_pdcycles_s;
-    // Number of clock cycles in self-refresh mode
-    ScalarStat sref_cycles_s;
-    // Number of clock cycles in activate power-up mode
-    ScalarStat pup_act_cycles_s;
-    // Number of clock cycles in precharged power-up mode
-    ScalarStat pup_pre_cycles_s;
-    // Number of clock cycles in self-refresh power-up mode
-    ScalarStat spup_cycles_s;
-
-    // Number of active auto-refresh cycles in self-refresh mode
-    ScalarStat sref_ref_act_cycles_s;
-    // Number of precharged auto-refresh cycles in self-refresh mode
-    ScalarStat sref_ref_pre_cycles_s;
-    // Number of active auto-refresh cycles during self-refresh exit
-    ScalarStat spup_ref_act_cycles_s;
-    // Number of precharged auto-refresh cycles during self-refresh exit
-    ScalarStat spup_ref_pre_cycles_s;
-    */
-
-    //libDRAMPower* drampower;
-    long update_counter = 0;
-
 public:
+    fifo_pipeline<mem_fetch>* rwq;
     /* Member Variables */
-    unsigned long clk = 0;
+    long clk = 0;
     DRAM<T>* channel;
-
-    bool use_separate_rw_queue;
-    bool use_refresh;
-    bool use_activation_queue;
-    unsigned queue_size;
 
     Scheduler<T>* scheduler;  // determines the highest priority request whose commands will be issued
     RowPolicy<T>* rowpolicy;  // determines the row-policy (e.g., closed-row vs. open-row)
     RowTable<T>* rowtable;  // tracks metadata about rows (e.g., which are open and for how long)
     Refresh<T>* refresh;
 
-    AddrDecoder<T> *addrDecoder;
-
-
     struct Queue {
         list<Request> q;
-        unsigned int max = 0; // is configured by using gpgpusim.config option
+        unsigned int max = 32;
         unsigned int size() {return q.size();}
     };
 
-
-    Queue requestq;
     Queue readq;  // queue for read requests
     Queue writeq;  // queue for write requests
+    Queue actq; // read and write requests for which activate was issued are moved to 
+                   // actq, which has higher priority than readq and writeq.
+                   // This is an optimization
+                   // for avoiding useless activations (i.e., PRECHARGE
+                   // after ACTIVATE w/o READ of WRITE command)
     Queue otherq;  // queue for all "other" requests (e.g., refresh)
-    Queue actq;
 
     deque<Request> pending;  // read requests that are about to receive data from DRAM
     bool write_mode = false;  // whether write requests should be prioritized over reads
+    float wr_high_watermark = 0.8f; // threshold for switching to write mode
+    float wr_low_watermark = 0.2f; // threshold for switching back to read mode
     //long refreshed = 0;  // last time refresh requests were generated
-    string app_name;
-    int finishCount = 0;
 
     /* Command trace for DRAMPower 3.1 */
     string cmd_trace_prefix = "cmd-trace-";
@@ -231,67 +105,17 @@ public:
     bool record_cmd_trace = false;
     /* Commands to stdout */
     bool print_cmd_trace = false;
-    bool with_drampower = false;
-
-    // ideal DRAM
-    bool no_DRAM_latency = false;
-    bool unlimit_bandwidth = false;
-
-
-    void fake_ideal_DRAM(const Config& configs) {
-        if (configs["no_DRAM_latency"] == "true") {
-          no_DRAM_latency = true;
-          scheduler->type = Scheduler<T>::Type::FRFCFS;
-        }
-        if (configs["unlimit_bandwidth"] == "true") {
-          unlimit_bandwidth = true;
-          printf("nBL: %d\n", channel->spec->speed_entry.nBL);
-          assert(channel->spec->speed_entry.nBL == 0);
-          assert(channel->spec->read_latency == channel->spec->speed_entry.nCL);
-          //assert(channel->spec->speed_entry.nCCD == 1);
-        }
-    }
 
     /* Constructor */
-    //Controller(const Config& configs, DRAM<T>* channel, fifo_pipeline<mem_fetch>* rwq, std::string app_name) :
-    Controller(const Config& configs, DRAM<T>* channel, fifo_pipeline<mem_fetch>* rwq,
-               AddrDecoder<T> *addrDecoder) :
+    Controller(const Config& configs, DRAM<T>* channel, fifo_pipeline<mem_fetch>* rwq) :
         rwq(rwq),
         channel(channel),
         scheduler(new Scheduler<T>(this)),
         rowpolicy(new RowPolicy<T>(this)),
         rowtable(new RowTable<T>(this)),
         refresh(new Refresh<T>(this)),
-        //app_name(app_name),
-        cmd_trace_files(channel->children.size()),
-        addrDecoder(addrDecoder)
+        cmd_trace_files(channel->children.size())
     {
-        queue_size = configs.contains("queue_size") ?
-          std::stoi(configs["queue_size"]) : 64;
-        use_refresh = configs.contains("use_refresh") ?
-          bool(std::stoi(configs["use_refresh"])) : true;
-        use_activation_queue = configs.contains("use_activation_queue") ?
-          bool(std::stoi(configs["use_activation_queue"])) : false;
-        use_separate_rw_queue = configs.contains("use_separate_rw_queue") ?
-          bool(std::stoi(configs["use_separate_rw_queue"])) : true;
-
-        if (use_refresh) {
-          std::cout << "Ramulator will do refresh" << std::endl;
-        }
-        if (use_activation_queue) {
-          std::cout << "Ramulator will use activation queue" << std::endl;
-        }
-
-        std::cout << "queue_size: " << queue_size << std::endl;
-        if (use_separate_rw_queue) {
-          readq.max = queue_size;
-          writeq.max = queue_size;
-        } else {
-          requestq.max = queue_size * 2;
-        }
-        otherq.max = queue_size;
-        actq.max = queue_size;
-
         record_cmd_trace = configs.record_cmd_trace();
         print_cmd_trace = configs.print_cmd_trace();
         if (record_cmd_trace){
@@ -303,330 +127,161 @@ public:
             for (unsigned int i = 0; i < channel->children.size(); i++)
                 cmd_trace_files[i].open(prefix + to_string(i) + suffix);
         }
-        //if (configs["drampower_memspecs"] != "") {
-          //with_drampower = false;
-          //drampower = new libDRAMPower(
-            //  Data::MemSpecParser::getMemSpecFromXML(
-            //      configs["drampower_memspecs"]),
-          //   true);
-       // }
-        fake_ideal_DRAM(configs);
-        /* comment out DRAM power
-        if (with_drampower) {
-          // init DRAMPower stats
-          act_energy
-              .name("act_energy_" + to_string(channel->id))
-              .desc("act_energy_" + to_string(channel->id))
-              .precision(6)
-              ;
-          pre_energy
-              .name("pre_energy_" + to_string(channel->id))
-              .desc("pre_energy_" + to_string(channel->id))
-              .precision(6)
-              ;
-          read_energy
-              .name("read_energy_" + to_string(channel->id))
-              .desc("read_energy_" + to_string(channel->id))
-              .precision(6)
-              ;
-          write_energy
-              .name("write_energy_" + to_string(channel->id))
-              .desc("write_energy_" + to_string(channel->id))
-              .precision(6)
-              ;
 
-          act_stdby_energy
-              .name("act_stdby_energy_" + to_string(channel->id))
-              .desc("act_stdby_energy_" + to_string(channel->id))
-              .precision(6)
-              ;
+        // regStats
 
-          pre_stdby_energy
-              .name("pre_stdby_energy_" + to_string(channel->id))
-              .desc("pre_stdby_energy_" + to_string(channel->id))
-              .precision(6)
-              ;
+        row_hits
+            .name("row_hits_channel_"+to_string(channel->id) + "_core")
+            .desc("Number of row hits per channel per core")
+            .precision(0)
+            ;
+        row_misses
+            .name("row_misses_channel_"+to_string(channel->id) + "_core")
+            .desc("Number of row misses per channel per core")
+            .precision(0)
+            ;
+        row_conflicts
+            .name("row_conflicts_channel_"+to_string(channel->id) + "_core")
+            .desc("Number of row conflicts per channel per core")
+            .precision(0)
+            ;
 
-          idle_energy_act
-              .name("idle_energy_act_" + to_string(channel->id))
-              .desc("idle_energy_act_" + to_string(channel->id))
-              .precision(6)
-              ;
+        read_row_hits
+            .init(configs.get_core_num())
+            .name("read_row_hits_channel_"+to_string(channel->id) + "_core")
+            .desc("Number of row hits for read requests per channel per core")
+            .precision(0)
+            ;
+        read_row_misses
+            .init(configs.get_core_num())
+            .name("read_row_misses_channel_"+to_string(channel->id) + "_core")
+            .desc("Number of row misses for read requests per channel per core")
+            .precision(0)
+            ;
+        read_row_conflicts
+            .init(configs.get_core_num())
+            .name("read_row_conflicts_channel_"+to_string(channel->id) + "_core")
+            .desc("Number of row conflicts for read requests per channel per core")
+            .precision(0)
+            ;
 
-          idle_energy_pre
-              .name("idle_energy_pre_" + to_string(channel->id))
-              .desc("idle_energy_pre_" + to_string(channel->id))
-              .precision(6)
-              ;
+        write_row_hits
+            .init(configs.get_core_num())
+            .name("write_row_hits_channel_"+to_string(channel->id) + "_core")
+            .desc("Number of row hits for write requests per channel per core")
+            .precision(0)
+            ;
+        write_row_misses
+            .init(configs.get_core_num())
+            .name("write_row_misses_channel_"+to_string(channel->id) + "_core")
+            .desc("Number of row misses for write requests per channel per core")
+            .precision(0)
+            ;
+        write_row_conflicts
+            .init(configs.get_core_num())
+            .name("write_row_conflicts_channel_"+to_string(channel->id) + "_core")
+            .desc("Number of row conflicts for write requests per channel per core")
+            .precision(0)
+            ;
 
-          f_act_pd_energy
-              .name("f_act_pd_energy_" + to_string(channel->id))
-              .desc("f_act_pd_energy_" + to_string(channel->id))
-              .precision(6)
-              ;
-          f_pre_pd_energy
-              .name("f_pre_pd_energy_" + to_string(channel->id))
-              .desc("f_pre_pd_energy_" + to_string(channel->id))
-              .precision(6)
-              ;
-          s_act_pd_energy
-              .name("s_act_pd_energy_" + to_string(channel->id))
-              .desc("s_act_pd_energy_" + to_string(channel->id))
-              .precision(6)
-              ;
-          s_pre_pd_energy
-              .name("s_pre_pd_energy_" + to_string(channel->id))
-              .desc("s_pre_pd_energy_" + to_string(channel->id))
-              .precision(6)
-              ;
-          sref_energy
-              .name("sref_energy_" + to_string(channel->id))
-              .desc("sref_energy_" + to_string(channel->id))
-              .precision(6)
-              ;
-          sref_ref_energy
-              .name("sref_ref_energy_" + to_string(channel->id))
-              .desc("sref_ref_energy_" + to_string(channel->id))
-              .precision(6)
-              ;
-          sref_ref_act_energy
-              .name("sref_ref_act_energy_" + to_string(channel->id))
-              .desc("sref_ref_act_energy_" + to_string(channel->id))
-              .precision(6)
-              ;
-          sref_ref_pre_energy
-              .name("sref_ref_pre_energy_" + to_string(channel->id))
-              .desc("sref_ref_pre_energy_" + to_string(channel->id))
-              .precision(6)
-              ;
+        useless_activates
+            .name("useless_activates_"+to_string(channel->id)+ "_core")
+            .desc("Number of useless activations. E.g, ACT -> PRE w/o RD or WR")
+            .precision(0)
+            ;
 
-          spup_energy
-              .name("spup_energy_" + to_string(channel->id))
-              .desc("spup_energy_" + to_string(channel->id))
-              .precision(6)
-              ;
-          spup_ref_energy
-              .name("spup_ref_energy_" + to_string(channel->id))
-              .desc("spup_ref_energy_" + to_string(channel->id))
-              .precision(6)
-              ;
-          spup_ref_act_energy
-              .name("spup_ref_act_energy_" + to_string(channel->id))
-              .desc("spup_ref_act_energy_" + to_string(channel->id))
-              .precision(6)
-              ;
-          spup_ref_pre_energy
-              .name("spup_ref_pre_energy_" + to_string(channel->id))
-              .desc("spup_ref_pre_energy_" + to_string(channel->id))
-              .precision(6)
-              ;
-          pup_act_energy
-              .name("pup_act_energy_" + to_string(channel->id))
-              .desc("pup_act_energy_" + to_string(channel->id))
-              .precision(6)
-              ;
-          pup_pre_energy
-              .name("pup_pre_energy_" + to_string(channel->id))
-              .desc("pup_pre_energy_" + to_string(channel->id))
-              .precision(6)
-              ;
+        read_transaction_bytes
+            .name("read_transaction_bytes_"+to_string(channel->id))
+            .desc("The total byte of read transaction per channel")
+            .precision(0)
+            ;
+        write_transaction_bytes
+            .name("write_transaction_bytes_"+to_string(channel->id))
+            .desc("The total byte of write transaction per channel")
+            .precision(0)
+            ;
 
-          IO_power
-              .name("IO_power_" + to_string(channel->id))
-              .desc("IO_power_" + to_string(channel->id))
-              .precision(6)
-              ;
-          WR_ODT_power
-              .name("WR_ODT_power_" + to_string(channel->id))
-              .desc("WR_ODT_power_" + to_string(channel->id))
-              .precision(6)
-              ;
-          TermRD_power
-              .name("TermRD_power_" + to_string(channel->id))
-              .desc("TermRD_power_" + to_string(channel->id))
-              .precision(6)
-              ;
-          TermWR_power
-              .name("TermWR_power_" + to_string(channel->id))
-              .desc("TermWR_power_" + to_string(channel->id))
-              .precision(6)
-              ;
+        read_latency_sum
+            .name("read_latency_sum_"+to_string(channel->id))
+            .desc("The memory latency cycles (in memory time domain) sum for all read requests in this channel")
+            .precision(0)
+            ;
+        read_latency_avg
+            .name("read_latency_avg_"+to_string(channel->id))
+            .desc("The average memory latency cycles (in memory time domain) per request for all read requests in this channel")
+            .precision(6)
+            ;
 
-          read_io_energy
-              .name("read_io_energy_" + to_string(channel->id))
-              .desc("read_io_energy_" + to_string(channel->id))
-              .precision(6)
-              ;
-          write_term_energy
-              .name("write_term_energy_" + to_string(channel->id))
-              .desc("write_term_energy_" + to_string(channel->id))
-              .precision(6)
-              ;
-          read_oterm_energy
-              .name("read_oterm_energy_" + to_string(channel->id))
-              .desc("read_oterm_energy_" + to_string(channel->id))
-              .precision(6)
-              ;
-          write_oterm_energy
-              .name("write_oterm_energy_" + to_string(channel->id))
-              .desc("write_oterm_energy_" + to_string(channel->id))
-              .precision(6)
-              ;
-          io_term_energy
-              .name("io_term_energy_" + to_string(channel->id))
-              .desc("io_term_energy_" + to_string(channel->id))
-              .precision(6)
-              ;
+        req_queue_length_sum
+            .name("req_queue_length_sum_"+to_string(channel->id))
+            .desc("Sum of read and write queue length per memory cycle per channel.")
+            .precision(0)
+            ;
+        req_queue_length_avg
+            .name("req_queue_length_avg_"+to_string(channel->id))
+            .desc("Average of read and write queue length per memory cycle per channel.")
+            .precision(6)
+            ;
 
-          ref_energy
-              .name("ref_energy_" + to_string(channel->id))
-              .desc("ref_energy_" + to_string(channel->id))
-              .precision(6)
-              ;
+        read_req_queue_length_sum
+            .name("read_req_queue_length_sum_"+to_string(channel->id))
+            .desc("Read queue length sum per memory cycle per channel.")
+            .precision(0)
+            ;
+        read_req_queue_length_avg
+            .name("read_req_queue_length_avg_"+to_string(channel->id))
+            .desc("Read queue length average per memory cycle per channel.")
+            .precision(6)
+            ;
 
-          total_energy
-              .name("total_energy_" + to_string(channel->id))
-              .desc("total_energy_" + to_string(channel->id))
-              .precision(6)
-              ;
-          average_power
-              .name("average_power_" + to_string(channel->id))
-              .desc("average_power_" + to_string(channel->id))
-              .precision(6)
-              ;
+        write_req_queue_length_sum
+            .name("write_req_queue_length_sum_"+to_string(channel->id))
+            .desc("Write queue length sum per memory cycle per channel.")
+            .precision(0)
+            ;
+        write_req_queue_length_avg
+            .name("write_req_queue_length_avg_"+to_string(channel->id))
+            .desc("Write queue length average per memory cycle per channel.")
+            .precision(6)
+            ;
 
-          numberofacts_s
-              .name("numberofacts_s_" + to_string(channel->id))
-              .desc("Number of activate commands_" + to_string(channel->id))
-              .precision(0)
-              ;
-          numberofpres_s
-              .name("numberofpres_s_" + to_string(channel->id))
-              .desc("Number of precharge commands_" + to_string(channel->id))
-              .precision(0)
-              ;
-          numberofreads_s
-              .name("numberofreads_s_" + to_string(channel->id))
-              .desc("Number of reads commands_" + to_string(channel->id))
-              .precision(0)
-              ;
-          numberofwrites_s
-              .name("numberofwrites_s_" + to_string(channel->id))
-              .desc("Number of writes commands_" + to_string(channel->id))
-              .precision(0)
-              ;
-          numberofrefs_s
-              .name("numberofrefs_s_" + to_string(channel->id))
-              .desc("Number of refresh commands_" + to_string(channel->id))
-              .precision(0)
-              ;
-          precycles_s
-              .name("precycles_s_" + to_string(channel->id))
-              .desc("Number of precharge cycles_" + to_string(channel->id))
-              .precision(0)
-              ;
-          actcycles_s
-              .name("actcycles_s_" + to_string(channel->id))
-              .desc("Number of active cycles_" + to_string(channel->id))
-              .precision(0)
-              ;
-          idlecycles_act_s
-              .name("idlecycles_act_s_" + to_string(channel->id))
-              .desc("Number of Idle cycles in the active state_" + to_string(channel->id))
-              .precision(0)
-              ;
-          idlecycles_pre_s
-              .name("idlecycles_pre_s_" + to_string(channel->id))
-              .desc("Number of Idle cycles in the precharge state_" + to_string(channel->id))
-              .precision(0)
-              ;
-          f_act_pdns_s
-              .name("f_act_pdns_s_" + to_string(channel->id))
-              .desc("Number of fast-exit activate power-downs_" + to_string(channel->id))
-              .precision(0)
-              ;
-          s_act_pdns_s
-              .name("s_act_pdns_s_" + to_string(channel->id))
-              .desc("Number of slow-exit activate power-downs_" + to_string(channel->id))
-              .precision(0)
-              ;
-          f_pre_pdns_s
-              .name("f_pre_pdns_s_" + to_string(channel->id))
-              .desc("Number of fast-exit precharged power-downs_" + to_string(channel->id))
-              .precision(0)
-              ;
-          s_pre_pdns_s
-              .name("s_pre_pdns_s_" + to_string(channel->id))
-              .desc("Number of slow-exit activate power-downs_" + to_string(channel->id))
-              .precision(0)
-              ;
-          numberofsrefs_s
-              .name("numberofsrefs_s_" + to_string(channel->id))
-              .desc("Number of self-refresh commands_" + to_string(channel->id))
-              .precision(0)
-              ;
-          f_act_pdcycles_s
-              .name("f_act_pdcycles_s_" + to_string(channel->id))
-              .desc("Number of clock cycles in fast-exit activate power-down mode_" + to_string(channel->id))
-              .precision(0)
-              ;
-          s_act_pdcycles_s
-              .name("s_act_pdcycles_s_" + to_string(channel->id))
-              .desc("Number of clock cycles in slow-exit activate power-down mode_" + to_string(channel->id))
-              .precision(0)
-              ;
-          f_pre_pdcycles_s
-              .name("f_pre_pdcycles_s_" + to_string(channel->id))
-              .desc("Number of clock cycles in fast-exit precharged power-down mode_" + to_string(channel->id))
-              .precision(0)
-              ;
-          s_pre_pdcycles_s
-              .name("s_pre_pdcycles_s_" + to_string(channel->id))
-              .desc("Number of clock cycles in slow-exit precharged power-down mode_" + to_string(channel->id))
-              .precision(0)
-              ;
-          sref_cycles_s
-              .name("sref_cycles_s_" + to_string(channel->id))
-              .desc("Number of clock cycles in self-refresh mode_" + to_string(channel->id))
-              .precision(0)
-              ;
-          pup_act_cycles_s
-              .name("pup_act_cycles_s_" + to_string(channel->id))
-              .desc("Number of clock cycles in activate power-up mode_" + to_string(channel->id))
-              .precision(0)
-              ;
-          pup_pre_cycles_s
-              .name("pup_pre_cycles_s_" + to_string(channel->id))
-              .desc("Number of clock cycles in precharged power-up mode_" + to_string(channel->id))
-              .precision(0)
-              ;
-          spup_cycles_s
-              .name("spup_cycles_s_" + to_string(channel->id))
-              .desc("Number of clock cycles in self-refresh power-up mode_" + to_string(channel->id))
-              .precision(0)
-              ;
-          sref_ref_act_cycles_s
-              .name("sref_ref_act_cycles_s_" + to_string(channel->id))
-              .desc("Number of active auto-refresh cycles in self-refresh mode_" + to_string(channel->id))
-              .precision(0)
-              ;
-          sref_ref_pre_cycles_s
-              .name("sref_ref_pre_cycles_s_" + to_string(channel->id))
-              .desc("Number of precharged auto-refresh cycles in self-refresh mode_" + to_string(channel->id))
-              .precision(0)
-              ;
-          spup_ref_act_cycles_s
-              .name("spup_ref_act_cycles_s_" + to_string(channel->id))
-              .desc("Number of active auto-refresh cycles during self-refresh exit_" + to_string(channel->id))
-              .precision(0)
-              ;
-          spup_ref_pre_cycles_s
-              .name("spup_ref_pre_cycles_s_" + to_string(channel->id))
-              .desc("Number of precharged auto-refresh cycles during self-refresh exit_" + to_string(channel->id))
-              .precision(0)
-              ;
-        }
-    */
+#ifndef INTEGRATED_WITH_GEM5
+        record_read_hits
+            .init(configs.get_core_num())
+            .name("record_read_hits")
+            .desc("record read hit count for this core when it reaches request limit or to the end")
+            ;
+
+        record_read_misses
+            .init(configs.get_core_num())
+            .name("record_read_misses")
+            .desc("record_read_miss count for this core when it reaches request limit or to the end")
+            ;
+
+        record_read_conflicts
+            .init(configs.get_core_num())
+            .name("record_read_conflicts")
+            .desc("record read conflict count for this core when it reaches request limit or to the end")
+            ;
+
+        record_write_hits
+            .init(configs.get_core_num())
+            .name("record_write_hits")
+            .desc("record write hit count for this core when it reaches request limit or to the end")
+            ;
+
+        record_write_misses
+            .init(configs.get_core_num())
+            .name("record_write_misses")
+            .desc("record write miss count for this core when it reaches request limit or to the end")
+            ;
+
+        record_write_conflicts
+            .init(configs.get_core_num())
+            .name("record_write_conflicts")
+            .desc("record write conflict for this core when it reaches request limit or to the end")
+            ;
+#endif
     }
 
     ~Controller(){
@@ -640,6 +295,14 @@ public:
         cmd_trace_files.clear();
     }
 
+    void finish(long read_req, long dram_cycles) {
+      read_latency_avg = read_latency_sum.value() / read_req;
+      req_queue_length_avg = req_queue_length_sum.value() / dram_cycles;
+      read_req_queue_length_avg = read_req_queue_length_sum.value() / dram_cycles;
+      write_req_queue_length_avg = write_req_queue_length_sum.value() / dram_cycles;
+      // call finish function of each channel
+      channel->finish(dram_cycles);
+    }
 
     bool full(Request::Type type) {
       Queue q = get_queue(type);
@@ -647,132 +310,103 @@ public:
       return (q.size() >= q.max);
     }
 
-    virtual void finish(long dram_cycles) {
-      channel->finish(dram_cycles);
-    }
-
     /* Member Functions */
-    virtual Queue& get_queue(Request::Type type)
+    Queue& get_queue(Request::Type type)
     {
-      if (use_separate_rw_queue) {
         switch (int(type)) {
             case int(Request::Type::R_READ): return readq;
             case int(Request::Type::R_WRITE): return writeq;
             default: return otherq;
         }
-      } else {
-        return requestq;
-      }
     }
 
-    virtual bool enqueue(Request& req)
+    bool enqueue(Request& req)
     {
         Queue& queue = get_queue(req.type);
         if (queue.max == queue.size())
             return false;
-//cout<<" arrived ";
-        req.arrive = clk;
 
+        req.arrive = clk;
         queue.q.push_back(req);
         // shortcut for read requests, if a write to same addr exists
         // necessary for coherence
         if (req.type == Request::Type::R_READ && find_if(writeq.q.begin(), writeq.q.end(),
-                [req](Request& wreq){ return req.addr_vec == wreq.addr_vec;}) != writeq.q.end()){
+                [req](Request& wreq){ return req.addr == wreq.addr;}) != writeq.q.end()){
             req.depart = clk + 1;
             pending.push_back(req);
             readq.q.pop_back();
-            //dram_bank_statq[bankid].q.pop_back();
         }
         return true;
     }
 
-    virtual void tick()
+    void tick()
     {
         clk++;
-        (*req_queue_length_sum) += readq.size() + writeq.size() + pending.size();
-        (*read_req_queue_length_sum) += readq.size() + pending.size();
-        (*write_req_queue_length_sum) += writeq.size();
+        req_queue_length_sum += readq.size() + writeq.size() + pending.size();
+        read_req_queue_length_sum += readq.size() + pending.size();
+        write_req_queue_length_sum += writeq.size();
 
         /*** 1. Serve completed reads ***/
         if (pending.size() && !rwq->full()) {
-          Request& req = pending[0];
-          if (req.depart <= clk) {  // if the r/w latency meets
-            if (req.type == Request::Type::R_READ) {
-              if (req.depart - req.arrive > 1) { // this request really accessed a row (when a read accesses the same address of a previous write, it directly returns. See how this is handled in enqueue function)
-                (*read_latency_sum) += req.depart - req.arrive;
-                channel->update_serving_requests(
-                    req.addr_vec.data(), -1, clk);
-              }
-              req.callback(req);
-            } else if (req.type == Request::Type::R_WRITE) {
-              channel->update_serving_requests(req.addr_vec.data(), -1, clk);
-              if (!req.hasNextAddr())
+            Request& req = pending[0];
+            if (req.depart <= clk) {
+                if (req.depart - req.arrive > 1) { // this request really accessed a row
+                  read_latency_sum += req.depart - req.arrive;
+                  channel->update_serving_requests(
+                      req.addr_vec.data(), -1, clk);
+                }
                 req.callback(req);
-            } else {
-              assert (false && "Unexpected request is returned");
+                pending.pop_front();
             }
-  //cout<<" departed ";
-            pending.pop_front();
-          }
         }
 
         /*** 2. Refresh scheduler ***/
-        // sungjun: refresh uses otherq, not read or write queue
-        if (use_refresh)
-          refresh->tick_ref();
+        refresh->tick_ref();
 
         /*** 3. Should we schedule writes? ***/
-        if (use_separate_rw_queue) {
-          if (!write_mode) {
-              // yes -- write queue is almost full or read queue is empty
-              if (writeq.size() >= int(0.8 * writeq.max) || readq.size() == 0)
-                  write_mode = true;
-          }
-          else {
-              // no -- write queue is almost empty and read queue is not empty
-              if (writeq.size() <= int(0.2 * writeq.max) && readq.size() != 0)
-                  write_mode = false;
-          }
+        if (!write_mode) {
+            // yes -- write queue is almost full or read queue is empty
+            if (writeq.size() > int(wr_high_watermark * writeq.max) || readq.size() == 0)
+                write_mode = true;
+        }
+        else {
+            // no -- write queue is almost empty and read queue is not empty
+            if (writeq.size() < int(wr_low_watermark * writeq.max) && readq.size() != 0)
+                write_mode = false;
         }
 
         /*** 4. Find the best command to schedule, if any ***/
 
-        Queue* queue = nullptr;
-        if (use_activation_queue) {
-          queue = &actq;
-        } else {
-          if (use_separate_rw_queue)
-            queue = !write_mode ? &readq : &writeq;
-          else
-            queue = &requestq;
-
-          if (otherq.size())
-            queue = &otherq;
-        }
-
+        // First check the actq (which has higher priority) to see if there
+        // are requests available to service in this cycle
+        Queue* queue = &actq;
+        typename T::Command cmd;
         auto req = scheduler->get_head(queue->q);
 
-        // Sungjun: Assume we do not use activation queue
-        if (use_separate_rw_queue) {
-          if (readq.q.size() == 0 && writeq.q.size() == 0)
-            ++(*idle_cycle);
-        } else {
-          if (requestq.q.size() == 0)
-            ++(*idle_cycle);
+        bool is_valid_req = (req != queue->q.end());
+
+        if(is_valid_req) {
+            cmd = get_first_cmd(req);
+            is_valid_req = is_ready(cmd, req->addr_vec);
         }
 
-        if (use_activation_queue) {
-          if ((req == queue->q.end() || !is_ready(req)) && actq.size()==0 ) {
+        if (!is_valid_req) {
             queue = !write_mode ? &readq : &writeq;
+
             if (otherq.size())
-              queue = &otherq;
+                queue = &otherq;  // "other" requests are rare, so we give them precedence over reads/writes
 
             req = scheduler->get_head(queue->q);
-          }
+
+            is_valid_req = (req != queue->q.end());
+
+            if(is_valid_req){
+                cmd = get_first_cmd(req);
+                is_valid_req = is_ready(cmd, req->addr_vec);
+            }
         }
 
-        if (req == queue->q.end() || !is_ready(req)) {
-          if (!no_DRAM_latency) {
+        if (!is_valid_req) {
             // we couldn't find a command to schedule -- let's try to be speculative
             auto cmd = T::Command::PRE;
             vector<int> victim = rowpolicy->get_victim(cmd);
@@ -780,9 +414,6 @@ public:
                 issue_cmd(cmd, victim);
             }
             return;  // nothing more to be done this cycle
-          } else {
-            return;
-          }
         }
 
         if (req->is_first_command) {
@@ -791,102 +422,71 @@ public:
             if (req->type == Request::Type::R_READ || req->type == Request::Type::R_WRITE) {
               channel->update_serving_requests(req->addr_vec.data(), 1, clk);
             }
-            // FIXME: easy to make mistakes when calculating tx. TODO move tx calculation during initialization
-            //int tx = (channel->spec->prefetch_size * channel->spec->channel_width / 8) * req->burst_count; // req->burst_count is the initial value because req->is_first_command is true
-            int tx = (channel->spec->prefetch_size * channel->spec->channel_width / 8); // req->burst_count is the initial value because req->is_first_command is true
+            int tx = (channel->spec->prefetch_size * channel->spec->channel_width / 8);
             if (req->type == Request::Type::R_READ) {
-                (*queueing_latency_sum) += clk - req->arrive;
                 if (is_row_hit(req)) {
-                    // To check the number of required columns per row
-                    ++(*read_row_hits)[coreid];
-                    ++(*row_hits);
+                    ++read_row_hits[coreid];
+                    ++row_hits;
                 } else if (is_row_open(req)) {
-                    ++(*read_row_conflicts)[coreid];
-                    ++(*row_conflicts);
-                } else {  // if row was closed
-                    ++(*read_row_misses)[coreid];
-                    ++(*row_misses);
+                    ++read_row_conflicts[coreid];
+                    ++row_conflicts;
+                } else {
+                    ++read_row_misses[coreid];
+                    ++row_misses;
                 }
-              (*read_transaction_bytes) += tx;
+              read_transaction_bytes += tx;
             } else if (req->type == Request::Type::R_WRITE) {
               if (is_row_hit(req)) {
-                  ++(*write_row_hits)[coreid];
-                  ++(*row_hits);
+                  ++write_row_hits[coreid];
+                  ++row_hits;
               } else if (is_row_open(req)) {
-                  ++(*write_row_conflicts)[coreid];
-                  ++(*row_conflicts);
+                  ++write_row_conflicts[coreid];
+                  ++row_conflicts;
               } else {
-                  ++(*write_row_misses)[coreid];
-                  ++(*row_misses);
+                  ++write_row_misses[coreid];
+                  ++row_misses;
               }
-              (*write_transaction_bytes) += tx;
+              write_transaction_bytes += tx;
             }
         }
 
         // issue command on behalf of request
-        auto cmd = get_first_cmd(req);
         issue_cmd(cmd, get_addr_vec(cmd, req));
 
-        if (use_activation_queue) {
-          if (!(channel->spec->is_accessing(cmd) || channel->spec->is_refreshing(cmd))) {
-            if (channel->spec->is_opening(cmd)) {
-            // promote the request that caused issuing activation to actq
-              actq.q.push_back(*req);
-              queue->q.erase(req);
+        // check whether this is the last command (which finishes the request)
+        //if (cmd != channel->spec->translate[int(req->type)]){
+        if (cmd != channel->spec->translate[int(req->type)]) {
+            if(channel->spec->is_opening(cmd)) {
+                // promote the request that caused issuing activation to actq
+                actq.q.push_back(*req);
+                queue->q.erase(req);
             }
+
             return;
-          }
-        } else {
-          // check whether this is the last command (which finishes the request)
-          if (cmd != channel->spec->translate[int(req->type)])
-              return;
         }
 
         // set a future completion time for read requests
         if (req->type == Request::Type::R_READ) {
-            // sungjun: gpgpusim uses read latency by using set_min_length()
             req->depart = clk + channel->spec->read_latency;
-            if (req->mf->get_access_type() == L2_WR_ALLOC_R) {
-              ++(*finished_wr_alloc_r);
-            } else {
-              ++(*finished_read);
-            }
-
             pending.push_back(*req);
-            queue->q.erase(req);
-        } else if (req->type == Request::Type::R_WRITE) {
-            // sungjun: gpgpusim uses write latency by using set_min_length()
-            req->depart = clk + channel->spec->write_latency;
-            //channel->update_serving_requests(req->addr_vec.data(), -1, clk);
-            if (req->mf->get_access_type() == L2_WRBK_ACC) {
-              ++(*finished_write_back);
-            } else {
-              ++(*finished_write);
-            }
-            pending.push_back(*req);
-
-            if (req->hasNextAddr()) {
-              req->addr = req->getNextAddr();
-              req->addr_vec = addrDecoder->generateMemoryAddr(req->addr);
-              req->is_first_command = true;
-            } else {
-              queue->q.erase(req);
-              //req->callback(*req);
-            }
-        } else {
-          queue->q.erase(req);
         }
+
+        if (req->type == Request::Type::R_WRITE) {
+            channel->update_serving_requests(req->addr_vec.data(), -1, clk);
+            req->callback(*req);
+        }
+
+        // remove request from queue
+        queue->q.erase(req);
     }
 
-    virtual bool is_ready(list<Request>::iterator req)
+    bool is_ready(list<Request>::iterator req)
     {
-        //printf("channel: %d, rank: %d, bank group: %d, bank: %d, column: %d\n", req->addr_vec[0], req->addr_vec[1], req->addr_vec[2], req->addr_vec[3], req->addr_vec[5]);
         typename T::Command cmd = get_first_cmd(req);
         return channel->check(cmd, req->addr_vec.data(), clk);
     }
 
-    virtual bool is_ready(typename T::Command cmd, const vector<int>& addr_vec)
-
+    bool is_ready(typename T::Command cmd, const vector<int>& addr_vec)
     {
         return channel->check(cmd, addr_vec.data(), clk);
     }
@@ -903,38 +503,21 @@ public:
         return channel->check_row_hit(cmd, addr_vec.data());
     }
 
-    bool is_scm_row_hit(list<Request>::iterator req)
-    {
-      assert(false);
-      return false;
-    }
-    bool is_dram_row_hit(list<Request>::iterator req)
-    {
-      assert(false);
-      return false;
-    }
-
     bool is_row_open(list<Request>::iterator req)
     {
         // cmd must be decided by the request type, not the first cmd
         typename T::Command cmd = channel->spec->translate[int(req->type)];
         return channel->check_row_open(cmd, req->addr_vec.data());
     }
-    bool is_scm_row_open(list<Request>::iterator req)
-    {
-      assert(false);
-      return false;
-    }
-    bool is_dram_row_open(list<Request>::iterator req)
-    {
-      assert(false);
-      return false;
-    }
 
     bool is_row_open(typename T::Command cmd, const vector<int>& addr_vec)
     {
         return channel->check_row_open(cmd, addr_vec.data());
     }
+
+    // void update_temp(ALDRAM::Temp current_temperature)
+    // {
+    // }
 
     // For telling whether this channel is busying in processing read or write
     bool is_active() {
@@ -946,64 +529,95 @@ public:
       return clk <= channel->end_of_refreshing;
     }
 
+    void set_high_writeq_watermark(const float watermark) {
+       wr_high_watermark = watermark; 
+    }
+
+    void set_low_writeq_watermark(const float watermark) {
+       wr_low_watermark = watermark;
+    }
+
     void record_core(int coreid) {
 #ifndef INTEGRATED_WITH_GEM5
-      (*record_read_hits)[coreid] = (*read_row_hits)[coreid];
-      (*record_read_misses)[coreid] = (*read_row_misses)[coreid];
-      (*record_read_conflicts)[coreid] = (*read_row_conflicts)[coreid];
-      (*record_write_hits)[coreid] = (*write_row_hits)[coreid];
-      (*record_write_misses)[coreid] = (*write_row_misses)[coreid];
-      (*record_write_conflicts)[coreid] = (*write_row_conflicts)[coreid];
+      record_read_hits[coreid] = read_row_hits[coreid];
+      record_read_misses[coreid] = read_row_misses[coreid];
+      record_read_conflicts[coreid] = read_row_conflicts[coreid];
+      record_write_hits[coreid] = write_row_hits[coreid];
+      record_write_misses[coreid] = write_row_misses[coreid];
+      record_write_conflicts[coreid] = write_row_conflicts[coreid];
 #endif
     }
 
-// modified: private -> public (child class can access below)
-public:
+private:
     typename T::Command get_first_cmd(list<Request>::iterator req)
     {
         typename T::Command cmd = channel->spec->translate[int(req->type)];
-        if (!no_DRAM_latency) {
-          return channel->decode(cmd, req->addr_vec.data());
-        } else {
-          return cmd;
+        return channel->decode(cmd, req->addr_vec.data());
+    }
+
+    // upgrade to an autoprecharge command
+    void cmd_issue_autoprecharge(typename T::Command& cmd,
+                                            const vector<int>& addr_vec) {
+
+        // currently, autoprecharge is only used with closed row policy
+        if(channel->spec->is_accessing(cmd) && rowpolicy->type == RowPolicy<T>::Type::ClosedAP) {
+            // check if it is the last request to the opened row
+            Queue* queue = write_mode ? &writeq : &readq;
+
+            auto begin = addr_vec.begin();
+            vector<int> rowgroup(begin, begin + int(T::Level::Row) + 1);
+
+			int num_row_hits = 0;
+
+            for (auto itr = queue->q.begin(); itr != queue->q.end(); ++itr) {
+                if (is_row_hit(itr)) { 
+                    auto begin2 = itr->addr_vec.begin();
+                    vector<int> rowgroup2(begin2, begin2 + int(T::Level::Row) + 1);
+                    if(rowgroup == rowgroup2)
+                        num_row_hits++;
+                }
+            }
+
+            if(num_row_hits == 0) {
+                Queue* queue = &actq;
+                for (auto itr = queue->q.begin(); itr != queue->q.end(); ++itr) {
+                    if (is_row_hit(itr)) {
+                        auto begin2 = itr->addr_vec.begin();
+                        vector<int> rowgroup2(begin2, begin2 + int(T::Level::Row) + 1);
+                        if(rowgroup == rowgroup2)
+                            num_row_hits++;
+                    }
+                }
+            }
+
+            assert(num_row_hits > 0); // The current request should be a hit, 
+                                      // so there should be at least one request 
+                                      // that hits in the current open row
+            if(num_row_hits == 1) {
+                if(cmd == T::Command::RD)
+                    cmd = T::Command::RDA;
+                else if (cmd == T::Command::WR)
+                    cmd = T::Command::WRA;
+                else
+                    assert(false && "Unimplemented command type.");
+            }
         }
+
     }
 
     void issue_cmd(typename T::Command cmd, const vector<int>& addr_vec)
     {
+        cmd_issue_autoprecharge(cmd, addr_vec);
         assert(is_ready(cmd, addr_vec));
+        channel->update(cmd, addr_vec.data(), clk);
 
-        /*
-        if (with_drampower) {
-          // update power estimation
-
-          const string& cmd_name = channel->spec->command_name[int(cmd)];
-          int bank_id = addr_vec[int(T::Level::Bank)];
-          if (channel->spec->standard_name == "DDR4" || 
-              channel->spec->standard_name == "GDDR5" || 
-              channel->spec->standard_name == "HBM" ||
-              channel->spec->standard_name == "PCM") {
-              // if has bankgroup
-              bank_id += addr_vec[int(T::Level::Bank) - 1] * channel->spec->org_entry.count[int(T::Level::Bank)];
-          }
-          //drampower->doCommand(Data::MemCommand::getTypeFromName(cmd_name), bank_id, clk);
-
-          update_counter++;
-          if (update_counter == 1000000) {
-            //  drampower->updateCounters(false); // not the last update
-              update_counter = 0;
-          }
+        if(cmd == T::Command::PRE){
+            if(rowtable->get_hits(addr_vec, true) == 0){
+                useless_activates++;
+            }
         }
-        */
-
-        if (!no_DRAM_latency) {
-          channel->update(cmd, addr_vec.data(), clk);
-          rowtable->update(cmd, addr_vec, clk);
-        } else {
-          // still have bandwidth restriction (update timing for RD/WR requets)
-          channel->update_timing(cmd, addr_vec.data(), clk);
-        }
-        /*
+ 
+        rowtable->update(cmd, addr_vec, clk);
         if (record_cmd_trace){
             // select rank
             auto& file = cmd_trace_files[addr_vec[1]];
@@ -1014,35 +628,39 @@ public:
                 file<<endl;
             else{
                 int bank_id = addr_vec[int(T::Level::Bank)];
-                if (channel->spec->standard_name == "DDR4" || 
-                    channel->spec->standard_name == "GDDR5" || 
-                    channel->spec->standard_name == "HBM" ||
-                    channel->spec->standard_name == "PCM") {
+                if (channel->spec->standard_name == "DDR4" || channel->spec->standard_name == "GDDR5")
                     bank_id += addr_vec[int(T::Level::Bank) - 1] * channel->spec->org_entry.count[int(T::Level::Bank)];
-                }
                 file<<','<<bank_id<<endl;
             }
         }
-        */
-        /*
         if (print_cmd_trace){
             printf("%5s %10ld:", channel->spec->command_name[int(cmd)].c_str(), clk);
             for (int lev = 0; lev < int(T::Level::MAX); lev++)
                 printf(" %5d", addr_vec[lev]);
             printf("\n");
         }
-        */
     }
     vector<int> get_addr_vec(typename T::Command cmd, list<Request>::iterator req){
         return req->addr_vec;
     }
 };
 
-template <>
-void Controller<GDDR5>::fake_ideal_DRAM(const Config& configs);
+// template <>
+// vector<int> Controller<SALP>::get_addr_vec(
+//     SALP::Command cmd, list<Request>::iterator req);
 
-template <>
-void Controller<HBM>::fake_ideal_DRAM(const Config& configs);
+// template <>
+// bool Controller<SALP>::is_ready(list<Request>::iterator req);
+
+// template <>
+// void Controller<ALDRAM>::update_temp(ALDRAM::Temp current_temperature);
+
+// template <>
+// void Controller<TLDRAM>::tick();
+
+// template <>
+// void Controller<TLDRAM>::cmd_issue_autoprecharge(typename TLDRAM::Command& cmd,
+//                                                     const vector<int>& addr_vec);
 
 } /*namespace ramulator*/
 

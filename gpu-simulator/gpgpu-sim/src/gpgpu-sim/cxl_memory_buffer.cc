@@ -4,12 +4,14 @@
 
 cxl_memory_buffer::cxl_memory_buffer(cxl_memory_buffer_config* config) {
   m_config = config;
+  tot_cycles = 0;
+  memory_cycles = 1;
   gpu_memory_cycle_ratio = (double) m_config->gpu_cycle_frequency / (double) m_config->memory_cycle_frequency;
   nvlinks = (NVLink**)malloc(sizeof(NVLink*) * m_config->num_gpus *
                              m_config->links_per_gpu);
-  ramulators = (Ramulator*)malloc(sizeof(Ramulator) * m_config->num_memories);
+  ramulators = (Ramulator**)malloc(sizeof(Ramulator*) * m_config->num_memories);
   for (int i = 0; i < m_config->num_memories; i++) {
-    ramulators[i] = Ramulator(i, &tot_cycles, m_config->num_gpus,
+    ramulators[i] = new Ramulator(i, &tot_cycles, m_config->num_gpus,
                               m_config->ramulator_config_file);
   }
 }
@@ -19,18 +21,18 @@ void cxl_memory_buffer::cycle() {
   
   for (int i = 0; i < num_links; i++) {
     // Process memory fetch request that from GPU to CXL memory buffer
-    if (!nvlinks[i]->to_cxl_buffer_empty()) {
+    if (!nvlinks[i]->to_cxl_buffer_empty() && !ramulators[0]->from_gpgpusim_full()) {
       mem_fetch* from_gpu_mem_fetch = nvlinks[i]->to_cxl_buffer_pop();
       from_gpu_mem_fetch->set_status(mem_fetch_status::IN_CXL_MEMORY_BUFFER,
                                      tot_cycles);
-      ramulators[0].push(from_gpu_mem_fetch);
+      ramulators[0]->push(from_gpu_mem_fetch);
     }
   }
 
   for(int i = 0; i < m_config->num_memories; i++){
     // Process memory fetch request that from  CXL memory buffer to GPU until ramulator return queue empty
-    while(ramulators[i].return_queue_top()){
-      mem_fetch* to_gpu_mem_fetch = ramulators[i].return_queue_pop();
+    while(ramulators[i]->return_queue_top()){
+      mem_fetch* to_gpu_mem_fetch = ramulators[i]->return_queue_pop();
       int to_gpu_link_num = to_gpu_mem_fetch->get_gpu_id();
       to_gpu_mem_fetch->set_status(mem_fetch_status::IN_SWITCH_TO_NVLINK, tot_cycles);
       if(!nvlinks[to_gpu_link_num]->from_cxl_buffer_full()){
@@ -41,7 +43,7 @@ void cxl_memory_buffer::cycle() {
       }
     }
     while(!overflow_buffer.empty()){
-      ramulators[i].return_queue_push_back(overflow_buffer.front());
+      ramulators[i]->return_queue_push_back(overflow_buffer.front());
       overflow_buffer.pop_front();
     }
   }
@@ -49,7 +51,7 @@ void cxl_memory_buffer::cycle() {
   for (int i = 0; i < m_config->num_memories; i++) {
     // Todo: Ramulator cycle mask
     if(check_memory_cycle()){
-      ramulators[i].cycle();
+      ramulators[i]->cycle();
       memory_cycles++;
     }
   }
