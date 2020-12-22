@@ -38,10 +38,13 @@ enum mf_type {
   WRITE_REQUEST,
   READ_REPLY,  // send to shader
   WRITE_ACK,
-  CXL_READ_REQUEST,
-  CXL_WRITE_REQUEST,
-  CXL_READ_REPLY,
-  CXL_WRITE_ACK
+  CXL_INVALIDATION_REQUEST,
+  CXL_MIGRATION_AGREE,
+  CXL_READ_ONLY_MIGRATION_REQUEST,
+  CXL_WIRTABLE_MIGRATION_REQUEST,
+  CXL_WRITE_BACK,
+  CXL_PAGE_READ_DATA,
+  CXL_PAGE_WRITE_DATA
 };
 
 #define MF_TUP_BEGIN(X) enum X {
@@ -65,6 +68,7 @@ class mem_fetch {
             unsigned ctrl_size, unsigned wid, unsigned sid, unsigned tpc,
             int gpu_id, const memory_config *config, unsigned long long cycle,
             mem_fetch *original_mf = NULL, mem_fetch *original_wr_mf = NULL);
+  mem_fetch(const mem_access_t &access, unsigned long long cycle, mem_fetch *original_mf);
   ~mem_fetch();
 
   void set_status(enum mem_fetch_status status, unsigned long long cycle);
@@ -79,6 +83,10 @@ class mem_fetch {
       m_type = WRITE_ACK;
     }
   }
+  void set_page_invalid() { m_type = CXL_INVALIDATION_REQUEST; }
+  void set_read_only_migartion_request() { m_type = CXL_READ_ONLY_MIGRATION_REQUEST; }
+  void set_writable_migartion_request() { m_type = CXL_WIRTABLE_MIGRATION_REQUEST; }
+  void set_migration_agree(){ m_type = CXL_MIGRATION_AGREE; }
   void do_atomic();
 
   void print(FILE *fp, bool print_inst = true) const;
@@ -144,9 +152,8 @@ class mem_fetch {
   mem_fetch *get_original_wr_mf() { return original_wr_mf; }
 
   //hyunuk
-  void set_link_depart(unsigned long long clk) { m_link_depart = clk;}
+  void set_link_depart(unsigned long long clk) { m_link_depart = clk; }
   unsigned long long get_link_depart() { return m_link_depart; }
-
  private:
   // request source information
   unsigned m_request_uid;
@@ -154,7 +161,6 @@ class mem_fetch {
   unsigned m_tpc;
   unsigned m_wid;
   int m_gpu_id;
-  
   //hyunuk
   unsigned long long m_link_depart;
 

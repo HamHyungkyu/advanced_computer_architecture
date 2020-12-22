@@ -109,6 +109,35 @@ mem_fetch::mem_fetch(const mem_access_t &access, const warp_inst_t *inst,
   }
 }
 
+mem_fetch::mem_fetch(const mem_access_t &access, unsigned long long cycles, mem_fetch *m_original_mf)
+  :m_access(access)
+{
+  m_request_uid = sm_next_mf_request_uid++;
+  m_data_size = m_original_mf->m_access.get_size();
+  m_ctrl_size = m_original_mf->m_ctrl_size;
+  m_sid = m_original_mf->m_sid;
+  m_tpc = m_original_mf->m_tpc;
+  m_wid = m_original_mf->m_wid;
+  m_gpu_id = m_original_mf->m_gpu_id;
+  m_mem_config = m_original_mf->m_mem_config;
+  m_mem_config->m_address_mapping.addrdec_tlx(m_access.get_addr(), &m_raw_addr);
+  m_partition_addr =
+      m_mem_config->m_address_mapping.partition_address(m_access.get_addr());  m_type = m_original_mf->m_type;
+  m_type = m_access.is_write() ? WRITE_REQUEST : READ_REQUEST;
+  m_timestamp = cycles;
+  m_timestamp2 = 0;
+  m_status = MEM_FETCH_INITIALIZED;
+  m_status_change = cycles;
+  icnt_flit_size = m_mem_config->icnt_flit_size;
+  original_mf = m_original_mf;
+  original_wr_mf = NULL;
+  if (m_original_mf) {
+    m_raw_addr.chip = m_original_mf->get_tlx_addr().chip;
+    m_raw_addr.sub_partition = m_original_mf->get_tlx_addr().sub_partition;
+  }
+}
+
+
 mem_fetch::~mem_fetch() { m_status = MEM_FETCH_DELETED; }
 
 #define MF_TUP_BEGIN(X) static const char *Status_str[] = {

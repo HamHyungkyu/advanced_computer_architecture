@@ -2,7 +2,7 @@
 #include <fstream>
 #include <iostream>
 
-cxl_memory_buffer::cxl_memory_buffer(cxl_memory_buffer_config* config) {
+cxl_memory_buffer::cxl_memory_buffer(cxl_memory_buffer_config* config){
   m_config = config;
   tot_cycles = 0;
   memory_cycles = 1;
@@ -10,6 +10,7 @@ cxl_memory_buffer::cxl_memory_buffer(cxl_memory_buffer_config* config) {
   nvlinks = (NVLink**)malloc(sizeof(NVLink*) * m_config->num_gpus *
                              m_config->links_per_gpu);
   ramulators = (Ramulator**)malloc(sizeof(Ramulator*) * m_config->num_memories);
+  
   for (int i = 0; i < m_config->num_memories; i++) {
     ramulators[i] = new Ramulator(i, &tot_cycles, m_config->num_gpus,
                               m_config->ramulator_config_file);
@@ -35,6 +36,7 @@ void cxl_memory_buffer::cycle() {
       mem_fetch* to_gpu_mem_fetch = ramulators[i]->return_queue_pop();
       int to_gpu_link_num = to_gpu_mem_fetch->get_gpu_id();
       to_gpu_mem_fetch->set_status(mem_fetch_status::IN_SWITCH_TO_NVLINK, tot_cycles);
+      
       if(!nvlinks[to_gpu_link_num]->from_cxl_buffer_full()){
         nvlinks[to_gpu_link_num]->push_from_cxl_buffer(to_gpu_mem_fetch);
       }
@@ -42,6 +44,7 @@ void cxl_memory_buffer::cycle() {
         overflow_buffer.push_back(to_gpu_mem_fetch);
       }
     }
+    
     while(!overflow_buffer.empty()){
       ramulators[i]->return_queue_push_back(overflow_buffer.front());
       overflow_buffer.pop_front();
@@ -60,6 +63,7 @@ void cxl_memory_buffer::cycle() {
 
 bool cxl_memory_buffer::check_memory_cycle(){
   double current_ratio = (double) tot_cycles / (double) memory_cycles;
+  
   if(gpu_memory_cycle_ratio < current_ratio){
     return true;
   }
@@ -79,14 +83,15 @@ cxl_memory_buffer_config::cxl_memory_buffer_config(std::string config_path) {
 
     while (true) {
       size_t start = line.find_first_not_of(delim);
+      
       if (start == string::npos) break;
-
+      
       size_t end = line.find_first_of(delim, start);
+      
       if (end == string::npos) {
         tokens.push_back(line.substr(start));
         break;
       }
-
       tokens.push_back(line.substr(start, end - start));
       line = line.substr(end);
     }
@@ -108,7 +113,8 @@ void cxl_memory_buffer_config::parse_to_const(const string& name,
                                               const string& value) {
   if (name == "num_gpus") {
     num_gpus = atoi(value.c_str());
-  } else if (name == "num_memories") {
+  } 
+  else if (name == "num_memories") {
     num_memories = atoi(value.c_str());
   } else if (name == "links_per_gpu") {
     links_per_gpu = atoi(value.c_str());
