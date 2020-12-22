@@ -13,6 +13,7 @@
 #include <cstdlib>
 #include <thread>
 #include <mutex>
+#include <atomic>
 #include <condition_variable>
 #include "gpgpu_context.h"
 #include "abstract_hardware_model.h"
@@ -49,12 +50,10 @@
 #define MAX_GPUS 16
 bool finished_gpu_jobs[MAX_GPUS];
 bool wating_gpus[MAX_GPUS];
-bool exit_gpus[MAX_GPUS];
-
+std::atomic<int> exit_gpus;
 std::queue<schedule_command> schedule_commands;
 std::mutex cycle_mtx;               // mutex for cycle synchronize
 std::mutex kernel_mtx;              // mutex for kernel scheduling
-std::mutex exit_mtx;                // mutex for exit checking
 std::condition_variable cycle_sync; // conditoin variable for cycle synchronize
 static int ready_counter = 0;
 
@@ -73,6 +72,7 @@ void do_cxl_perf(cxl_memory_buffer *m_cxl_memory_buffer, int num_gpus);
 int main(int argc, const char **argv)
 {
   int num_gpus = parse_num_gpus(argc, argv);
+  exit_gpus = 0;
   FILE *output_files[num_gpus];
   gpgpu_context *m_gpgpu_contexts[num_gpus];
   trace_config *m_trace_configs[num_gpus];
@@ -93,7 +93,6 @@ int main(int argc, const char **argv)
   schedule_commands = trace_parser::parse_schedule_file(m_trace_configs[0]->get_traces_filename());
   for (int i = 0; i < num_gpus; i++)
   {
-    exit_gpus[false];
     threads.push_back(std::thread(do_gpu_perf, num_gpus, *m_trace_configs[i], m_gpgpu_contexts[i], m_gpgpu_sims[i]));
   }
   threads.push_back(std::thread(do_cxl_perf, m_cxl_memory_buffer, num_gpus));
@@ -126,15 +125,19 @@ void do_gpu_perf(int num_gpus, trace_config tconfig, gpgpu_context *m_gpgpu_cont
   bool next_launch = true;
   bool sim_active = true;
   bool all_gpu_sim_active = true;
+  bool gpu_exit = false;
   trace_kernel_info_t *kernel_info;
   unsigned int i = 0;
-  do // do cycle
+
+  while (check_all_gpu_sim_active(num_gpus))
   {
     cycle_synchronizer(num_gpus, &local_cycle);
 
     //if current gpu is finished
-    if (!sim_active)
+    if (gpu_exit){
+      printf("EXTED %d \n", gpu_num);
       continue;
+    }
 
     //show next command list
     if (next_launch)
@@ -215,17 +218,19 @@ void do_gpu_perf(int num_gpus, trace_config tconfig, gpgpu_context *m_gpgpu_cont
       i++;
 
     sim_active = !(i == commandlist.size() && next_launch);
-    if (!sim_active)
+    if (!sim_active && !gpu_exit)
     {
-      std::unique_lock<std::mutex> lck(exit_mtx);
-      exit_gpus[m_gpgpu_sim->get_gpu_num()] = true;
-      lck.unlock();
+      exit_gpus++;
+      gpu_exit = true;
+      std::cout <<"exit" << exit_gpus <<   "gpu Num << " << gpu_num << std::endl;
     }
-
-  } while (check_all_gpu_sim_active(num_gpus));
+  } 
   m_gpgpu_sim->update_stats();
   m_gpgpu_context->print_simulation_time();
-  printf("FINISHED - %d\n", m_gpgpu_sim->get_gpu_num());
+  printf("GPU FINISHED - %d\n", gpu_num);
+  //To avoid deadlock
+  std::unique_lock<std::mutex> lck(cycle_mtx);
+  cycle_sync.notify_all();
 }
 
 void do_cxl_perf(cxl_memory_buffer *m_cxl_memory_buffer, int num_gpus)
@@ -236,7 +241,9 @@ void do_cxl_perf(cxl_memory_buffer *m_cxl_memory_buffer, int num_gpus)
     cycle_synchronizer(num_gpus, &local_cycle);
     m_cxl_memory_buffer->cycle();
   }
+  printf("CXL BUFFER FINISHED \n");
 }
+
 gpgpu_sim *gpgpu_trace_sim_init_perf_model(int argc, const char *argv[],
                                            gpgpu_context *m_gpgpu_context,
                                            trace_config *m_config, int gpu_num)
@@ -277,17 +284,19 @@ gpgpu_sim *gpgpu_trace_sim_init_perf_model(int argc, const char *argv[],
 
 void cycle_synchronizer(int num_gpus, unsigned long long *local_cycle)
 {
+  assert(check_all_gpu_sim_active(num_gpus));
   static unsigned long long cycle_counter = 0;
   //loop synchronizer
   std::unique_lock<std::mutex> lck(cycle_mtx);
   ready_counter++;
-  while (ready_counter == num_gpus + 1 && *local_cycle == cycle_counter) // plus on for cxl memoy buffer
+  while (ready_counter >= num_gpus + 1 && *local_cycle == cycle_counter) // plus on for cxl memoy buffer
   {
     cycle_sync.notify_all();
     cycle_counter++;
     ready_counter = 0;
   }
-  while (ready_counter < num_gpus + 1 && *local_cycle == cycle_counter)
+  while (ready_counter < num_gpus + 1 && *local_cycle == cycle_counter 
+    && check_all_gpu_sim_active(num_gpus))
   {
     cycle_sync.wait(lck);
   }
@@ -308,6 +317,7 @@ int parse_num_gpus(int argc, const char **argv)
   }
   return num_gpus;
 }
+
 cxl_memory_buffer_config *parse_cxl_config(int argc, const char **argv)
 {
   std::string config_path;
@@ -357,10 +367,5 @@ bool check_sync_device_finished(int num_gpus)
 //return false when all gpu exited
 bool check_all_gpu_sim_active(int num_gpus)
 {
-  bool finished = true;
-  for (int i = 0; i < num_gpus; i++)
-  {
-    finished = finished && exit_gpus[i];
-  }
-  return !finished;
+  return exit_gpus < num_gpus;
 }
