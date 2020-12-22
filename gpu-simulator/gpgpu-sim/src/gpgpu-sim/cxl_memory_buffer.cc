@@ -19,6 +19,7 @@ cxl_memory_buffer::cxl_memory_buffer(cxl_memory_buffer_config* config){
 }
 
 void cxl_memory_buffer::cycle() {
+  process_migration_requests();
   process_mem_fetch_request_from_gpu();
   process_mem_fetch_request_to_gpu();
 
@@ -39,15 +40,24 @@ void cxl_memory_buffer::process_mem_fetch_request_from_gpu() {
     // Process memory fetch request that from GPU to CXL memory buffer
     if (!nvlinks[i]->to_cxl_buffer_empty() && !ramulators[0]->from_gpgpusim_full()) {
       mem_fetch* from_gpu_mem_fetch = nvlinks[i]->to_cxl_buffer_pop();
-      from_gpu_mem_fetch->set_status(mem_fetch_status::IN_CXL_MEMORY_BUFFER, tot_cycles);
-      ramulators[0]->push(from_gpu_mem_fetch);
-      //Page controller job
-      page_controller->access_count_up(from_gpu_mem_fetch);
-      if(page_controller->check_writeable_migration(from_gpu_mem_fetch)){
-        push_nvlink(i, page_controller->generate_migration_request(from_gpu_mem_fetch, true));
+
+      if(from_gpu_mem_fetch->get_type() == mf_type::CXL_READ_ONLY_MIGRATION_AGREE || 
+        from_gpu_mem_fetch->get_type() == mf_type::CXL_WIRTABLE_MIGRATION_AGREE){
+        page_controller->set_shared_gpu(from_gpu_mem_fetch);
+        
       }
-      else if(page_controller->check_readonly_migration(from_gpu_mem_fetch)){
-        push_nvlink(i, page_controller->generate_migration_request(from_gpu_mem_fetch, false));
+      else {
+        from_gpu_mem_fetch->set_status(mem_fetch_status::IN_CXL_MEMORY_BUFFER, tot_cycles);
+        ramulators[0]->push(from_gpu_mem_fetch);
+        //Page controller job
+        page_controller->access_count_up(from_gpu_mem_fetch);
+
+        if(page_controller->check_writeable_migration(from_gpu_mem_fetch)){
+          push_nvlink(i, page_controller->generate_migration_request(from_gpu_mem_fetch, true));
+        }
+        else if(page_controller->check_readonly_migration(from_gpu_mem_fetch)){
+          push_nvlink(i, page_controller->generate_migration_request(from_gpu_mem_fetch, false));
+        }
       }
     }
   }
@@ -72,6 +82,13 @@ void cxl_memory_buffer::process_mem_fetch_request_to_gpu() {
   }
 }
 
+void cxl_memory_buffer::process_migration_requests() {
+  while(!page_migration_request_buffer.empty() && !ramulators[0]->from_gpgpusim_full()) {
+    ramulators[0]->push(page_migration_request_buffer.front());
+    page_migration_request_buffer.pop_front();
+  }
+}
+
 bool cxl_memory_buffer::check_memory_cycle(){
   double current_ratio = (double) tot_cycles / (double) memory_cycles;
   
@@ -88,6 +105,13 @@ void cxl_memory_buffer::push_nvlink(int link_num, mem_fetch* mf) {
   else{
     overflow_buffer.push_back(mf);
   }
+}
+
+void cxl_memory_buffer::push_migration_requests(mem_fetch **requests) { 
+  for(int i = 0; i < MEMFETCH_PER_PAGE; i++) { 
+    page_migration_request_buffer.push_back(requests[i]);
+  }
+  delete requests;
 }
 
 /*

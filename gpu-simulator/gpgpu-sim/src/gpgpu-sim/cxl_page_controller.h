@@ -31,6 +31,7 @@ class cxl_page_controller {
     :cycles(cycles), num_gpus(num_gpus), threshold(threshold){} 
   void access_count_up(mem_fetch *mf);
   void reset_page(mem_fetch *mf);
+  void set_shared_gpu(mem_fetch *mf);
   bool check_readonly_migration(mem_fetch *mf);
   bool check_writeable_migration(mem_fetch *mf);
   mem_fetch* generate_migration_request(mem_fetch *mf, bool read_only);

@@ -39,9 +39,10 @@ enum mf_type {
   READ_REPLY,  // send to shader
   WRITE_ACK,
   CXL_INVALIDATION_REQUEST,
-  CXL_MIGRATION_AGREE,
   CXL_READ_ONLY_MIGRATION_REQUEST,
+  CXL_READ_ONLY_MIGRATION_AGREE,
   CXL_WIRTABLE_MIGRATION_REQUEST,
+  CXL_WIRTABLE_MIGRATION_AGREE,
   CXL_WRITE_BACK,
   CXL_PAGE_READ_DATA,
   CXL_PAGE_WRITE_DATA
@@ -86,7 +87,14 @@ class mem_fetch {
   void set_page_invalid() { m_type = CXL_INVALIDATION_REQUEST; }
   void set_read_only_migartion_request() { m_type = CXL_READ_ONLY_MIGRATION_REQUEST; }
   void set_writable_migartion_request() { m_type = CXL_WIRTABLE_MIGRATION_REQUEST; }
-  void set_migration_agree(){ m_type = CXL_MIGRATION_AGREE; }
+  void set_migration_agree(){ 
+    assert(m_type == CXL_READ_ONLY_MIGRATION_REQUEST || m_type == CXL_WIRTABLE_MIGRATION_REQUEST);
+    if (m_type == CXL_READ_ONLY_MIGRATION_REQUEST) {
+      m_type = CXL_READ_ONLY_MIGRATION_AGREE; 
+    } else if (m_type == CXL_WIRTABLE_MIGRATION_REQUEST) {
+      m_type = CXL_WIRTABLE_MIGRATION_AGREE;
+    }
+  }
   void do_atomic();
 
   void print(FILE *fp, bool print_inst = true) const;

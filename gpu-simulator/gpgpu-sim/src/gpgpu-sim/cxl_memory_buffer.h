@@ -23,12 +23,15 @@ class cxl_memory_buffer {
   Ramulator **ramulators;
   NVLink **nvlinks;
   std::deque<mem_fetch*> overflow_buffer;
+  std::deque<mem_fetch*> page_migration_request_buffer;
   cxl_page_controller *page_controller;
   
   bool check_memory_cycle();
   void process_mem_fetch_request_from_gpu();
   void process_mem_fetch_request_to_gpu();
+  void process_migration_requests();
   void push_nvlink(int link_num, mem_fetch* mf);
+  void push_migration_requests(mem_fetch** requests);
 };
 
 class cxl_memory_buffer_config {

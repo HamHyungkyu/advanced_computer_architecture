@@ -42,6 +42,24 @@ bool cxl_page_controller::check_readonly_migration(mem_fetch *mf) {
   return read_threshold && check_all_zero_except_one(element.write_counter, -1); 
 }
 
+void cxl_page_controller::set_shared_gpu(mem_fetch *mf) {
+  new_addr_type addr = mem_fetch_to_page_addr(mf);
+  assert(page_table.find(addr) != page_table.end());
+  cxl_page_element element = page_table[addr];
+
+  if(mf->get_type() == mf_type::CXL_READ_ONLY_MIGRATION_AGREE){
+    element.shared_gpu[mf->get_gpu_id()] = true;
+  }
+  else if(mf->get_type() == mf_type::CXL_WIRTABLE_MIGRATION_AGREE){
+    element = generate_initial_page_element();
+    element.status = cxl_page_status::WRITE_SHARE;
+    element.shared_gpu[mf->get_gpu_id()] = true;
+  }
+  else{
+    assert(0);
+  }
+}
+
 bool cxl_page_controller::check_writeable_migration(mem_fetch *mf){
   cxl_page_element element = page_table[mem_fetch_to_page_addr(mf)];
   int gpu_num = mf->get_gpu_id();
