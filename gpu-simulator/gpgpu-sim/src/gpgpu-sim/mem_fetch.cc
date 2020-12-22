@@ -123,7 +123,16 @@ mem_fetch::mem_fetch(const mem_access_t &access, unsigned long long cycles, mem_
   m_mem_config->m_address_mapping.addrdec_tlx(m_access.get_addr(), &m_raw_addr);
   m_partition_addr =
       m_mem_config->m_address_mapping.partition_address(m_access.get_addr());  m_type = m_original_mf->m_type;
-  m_type = m_access.is_write() ? WRITE_REQUEST : READ_REQUEST;
+  switch(m_original_mf->get_type()){
+    case CXL_READ_ONLY_MIGRATION_AGREE:
+      m_type = CXL_READ_ONLY_MIGRATION_DATA;
+      break;
+    case CXL_WIRTABLE_MIGRATION_AGREE:
+      m_type = CXL_WIRTABLE_MIGRATION_DATA;
+      break;
+    default:
+      m_type = m_access.get_type() == mem_access_type::CXL_WRITE_BACK_ACC? CXL_WRITE_BACK: CXL_READ_ONLY_MIGRATION_REQUEST;
+  }
   m_timestamp = cycles;
   m_timestamp2 = 0;
   m_status = MEM_FETCH_INITIALIZED;

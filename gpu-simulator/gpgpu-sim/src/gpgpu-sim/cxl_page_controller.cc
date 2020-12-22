@@ -17,6 +17,9 @@ void cxl_page_controller::access_count_up(mem_fetch *mf) {
         break;
       case CXL_WRITE_BACK:
         page_table[addr].count_write_back += 1;
+        if(page_table[addr].count_write_back == MEMFETCH_PER_PAGE){
+          reset_page(mf);
+        }
         break;
     }
   }
@@ -31,14 +34,7 @@ void cxl_page_controller::reset_page(mem_fetch *mf) {
 bool cxl_page_controller::check_readonly_migration(mem_fetch *mf) {
   cxl_page_element element = page_table[mem_fetch_to_page_addr(mf)];
   int gpu_num = mf->get_gpu_id();
-  bool read_threshold = true;
-  
-  for(int i = 0; i < num_gpus; i++) {
-    if(i != gpu_num){
-      read_threshold = 
-        read_threshold && (element.read_counter[gpu_num] > element.read_counter[i] + threshold);  
-    }
-  }
+  bool read_threshold = element.read_counter[gpu_num] > threshold;
   return read_threshold && check_all_zero_except_one(element.write_counter, -1); 
 }
 

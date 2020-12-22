@@ -739,7 +739,7 @@ typedef std::bitset<SECTOR_CHUNCK_SIZE> mem_access_sector_mask_t;
       MA_TUP(L1_WRBK_ACC), MA_TUP(L2_WRBK_ACC), MA_TUP(INST_ACC_R),        \
       MA_TUP(L1_WR_ALLOC_R), MA_TUP(L2_WR_ALLOC_R),                        \
       MA_TUP(NUM_MEM_ACCESS_TYPE), MA_TUP(CXL_ACC_NDP), MA_TUP(CXL_MESSAGE), \
-      MA_TUP(CXL_MIGRATION) MA_TUP_END(mem_access_type)
+      MA_TUP(CXL_MIGRATION), MA_TUP(CXL_WRITE_BACK_ACC) MA_TUP_END(mem_access_type)
 
 #define MA_TUP_BEGIN(X) enum X {
 #define MA_TUP(X) X
@@ -844,6 +844,9 @@ class mem_access_t {
         break;
       case CXL_MIGRATION:
         fprintf(fp, "CXL_MIGRATION");
+        break;
+      case CXL_WRITE_BACK_ACC:
+        fprintf(fp, "CXL_WRITE_BACK_ACC");
         break;
       default:
         fprintf(fp, "unknown ");

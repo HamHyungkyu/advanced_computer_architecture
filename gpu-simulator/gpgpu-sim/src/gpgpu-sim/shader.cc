@@ -4979,26 +4979,10 @@ void simt_core_cluster::icnt_inject_request_packet(class mem_fetch *mf)
   }
 
   //hyunuk
-  //assert(m_page_manager);
+  assert(m_page_manager);
   page_location loc = m_page_manager->is_allocated(mf->get_addr());
-  if (loc == page_location::not_allocated) {
-    if (m_page_manager->gpu_full()) {
-      loc = page_location::CXL;
-    }
-    else {
-      loc = page_location::GPU;
-    }
-    m_page_manager->alloc_page(mf->get_addr(), loc);
-  }
  
-  // if (loc == page_location::CXL)
-  //   printf("Location to CXL\n");
-  // else if (loc == page_location::GPU)
-  //   printf("Location to GPU\n");
-  // else
-  //   assert(0);
   
-
   // The packet size varies depending on the type of request:
   // - For write request and atomic request, the packet contains the data
   // - For read request (i.e. not write nor atomic), the packet only has control

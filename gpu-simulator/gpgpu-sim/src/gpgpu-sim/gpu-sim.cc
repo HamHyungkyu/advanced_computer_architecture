@@ -1078,7 +1078,7 @@ void gpgpu_sim::init()
   gpu_sim_cycle_parition_util = 0;
 
   //hyunuk
-  m_page_manager.set_max_gpu_pages(104857);
+  m_page_manager.set_max_gpu_pages(10);
 
   reinit_clock_domains();
   gpgpu_ctx->func_sim->set_param_gpgpu_num_shaders(m_config.num_shader());
@@ -1958,27 +1958,7 @@ void gpgpu_sim::cycle()
       }
     }
 
-    if (!m_link->to_GPU_empty()) {
-      mem_fetch *mf = m_link->to_GPU_top();
-      
-      int src = m_memory_config->m_n_mem_sub_partition;
-
-      unsigned response_size =
-            mf->get_is_write() ? mf->get_ctrl_size() : mf->size();
-      if (::icnt_has_buffer(this->get_gpu_num(), m_shader_config->mem2device(src), response_size))
-      {
-        // if (!mf->get_is_write())
-        mf->set_return_timestamp(gpu_sim_cycle + gpu_tot_sim_cycle);
-        mf->set_status(IN_ICNT_TO_SHADER, gpu_sim_cycle + gpu_tot_sim_cycle);
-        ::icnt_push(this->get_gpu_num(), m_shader_config->mem2device(src), mf->get_tpc(), mf,
-                    response_size);
-        m_link->to_GPU_pop();
-      }
-      else
-      {
-        gpu_stall_icnt2sh++;
-      }
-    }
+    process_mem_fetch_from_cxl();
   }
   partiton_replys_in_parallel += partiton_replys_in_parallel_per_cycle;
 
@@ -2047,10 +2027,15 @@ void gpgpu_sim::cycle()
   if (clock_mask & LINK)
   {
     int src = m_memory_config->m_n_mem_sub_partition;
-    if (!m_link->from_GPU_full()) {
-      mem_fetch* mf = (mem_fetch *)icnt_pop(this->get_gpu_num(), m_shader_config->mem2device(src));
-      if (mf)
-        m_link->push_from_GPU(mf);
+    if (!m_link->from_GPU_full() ) {
+      if(m_page_manager.is_write_back_buffer_empty()){
+        mem_fetch* mf = (mem_fetch *)icnt_pop(this->get_gpu_num(), m_shader_config->mem2device(src));
+        if (mf)
+          m_link->push_from_GPU(mf);
+      }
+      else {
+        m_link->push_from_GPU(m_page_manager.pop_write_back_buffer());
+      }
     }
     m_link->cycle();
   }
@@ -2316,6 +2301,60 @@ void gpgpu_sim::dump_pipeline(int mask, int s, int m) const
     }
   }
   fflush(output_file);
+}
+
+void gpgpu_sim::process_mem_fetch_from_cxl(){
+  if (!m_link->to_GPU_empty()) {
+    mem_fetch *mf = m_link->to_GPU_top();
+    if(mf->get_type() == mf_type::READ_REPLY || mf->get_type() == WRITE_ACK){
+      int src = m_memory_config->m_n_mem_sub_partition;
+
+      unsigned response_size =
+            mf->get_is_write() ? mf->get_ctrl_size() : mf->size();
+      if (::icnt_has_buffer(this->get_gpu_num(), m_shader_config->mem2device(src), response_size))
+      {
+        // if (!mf->get_is_write())
+        mf->set_return_timestamp(gpu_sim_cycle + gpu_tot_sim_cycle);
+        mf->set_status(IN_ICNT_TO_SHADER, gpu_sim_cycle + gpu_tot_sim_cycle);
+        ::icnt_push(this->get_gpu_num(), m_shader_config->mem2device(src), mf->get_tpc(), mf,
+                    response_size);
+        m_link->to_GPU_pop();
+      }
+      else
+      {
+        gpu_stall_icnt2sh++;
+      }
+    }
+    else if(mf->get_type() == mf_type::CXL_READ_ONLY_MIGRATION_REQUEST ||
+      mf->get_type() == mf_type::CXL_WIRTABLE_MIGRATION_REQUEST && 
+      !m_link->from_GPU_full()) {
+      bool read_only = mf->get_type() == mf_type::CXL_READ_ONLY_MIGRATION_REQUEST? true : false;
+      m_link->to_GPU_pop();
+      if(m_page_manager.gpu_full()){
+        page_entry entry = m_page_manager.evict_LRU_page();
+        if(entry.read_only){
+          mf->set_migration_agree();
+          m_link->push_from_GPU(mf);
+        }
+        else {
+          m_page_manager.push_write_back_requests(gpu_sim_cycle + gpu_tot_sim_cycle, mf);
+        }
+      }
+      else {
+        mf->set_migration_agree();
+        m_link->push_from_GPU(mf);
+        m_page_manager.alloc_page(mf->get_addr(), page_location::GPU, read_only);
+      } 
+    }
+    else if(mf->get_type() == mf_type::CXL_READ_ONLY_MIGRATION_DATA || 
+      mf->get_type() == mf_type::CXL_WIRTABLE_MIGRATION_DATA){
+      bool read_only = mf->get_type() == mf_type::CXL_READ_ONLY_MIGRATION_DATA? true : false;
+      if(page_location::GPU !=m_page_manager.is_allocated(mf->get_addr())){
+        m_page_manager.alloc_page(mf->get_addr(), page_location::GPU, read_only);
+      }
+      m_page_manager.save_migration(mf);
+    }
+  }
 }
 
 const shader_core_config *gpgpu_sim::getShaderCoreConfig()
