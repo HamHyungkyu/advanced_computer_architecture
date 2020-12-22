@@ -2,6 +2,7 @@
 #define NVLINK_H
 //#include "Request.h"
 #include <iostream>
+#include <mutex>
 
 #include "mem_fetch.h"
 
@@ -45,6 +46,12 @@ class NVLink {
 
   void cycle();
 
+  void acquire_to_gpu() {to_gpu_m.lock();}
+  void release_to_gpu() {to_gpu_m.unlock();}
+
+  void acquire_to_cxl() {to_cxl_m.lock();}
+  void release_to_cxl() {to_cxl_m.unlock();}
+
  private:
   fifo_pipeline<mem_fetch>* from_GPU;
   fifo_pipeline<mem_fetch>* from_cxl_buffer;
@@ -58,6 +65,9 @@ class NVLink {
   int gpu_id;  // GPU id
   unsigned long long clk = 0;
   unsigned long long latency = 2;
+
+  std::mutex to_gpu_m;
+  std::mutex to_cxl_m;
   // int clk = 0;
 };
 #endif

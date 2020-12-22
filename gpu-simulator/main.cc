@@ -182,8 +182,11 @@ void do_gpu_perf(int num_gpus, trace_config tconfig, gpgpu_context *m_gpgpu_cont
           continue;
         }
       }
-      else
-        assert(0);
+      else {
+        i++;
+        continue;
+        // assert(0);
+      }
     }
 
     bool active = false;

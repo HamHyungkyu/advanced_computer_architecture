@@ -1078,7 +1078,7 @@ void gpgpu_sim::init()
   gpu_sim_cycle_parition_util = 0;
 
   //hyunuk
-  m_page_manager.set_max_gpu_pages(10);
+  m_page_manager.set_max_gpu_pages(104857);
 
   reinit_clock_domains();
   gpgpu_ctx->func_sim->set_param_gpgpu_num_shaders(m_config.num_shader());

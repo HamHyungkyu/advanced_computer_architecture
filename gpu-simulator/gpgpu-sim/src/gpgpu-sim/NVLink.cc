@@ -70,7 +70,9 @@ bool NVLink::to_cxl_buffer_empty() {
 }
 
 void NVLink::push_from_cxl_buffer(mem_fetch* mf) {
+   acquire_to_gpu();
    from_cxl_buffer->push(mf);
+   release_to_gpu();
 }
 
 mem_fetch* NVLink::to_GPU_top() {
@@ -85,25 +87,30 @@ void NVLink::cycle() {
    if (!from_GPU->empty()) {
       if (!to_cxl_buffer_waiting->full()) {
          mem_fetch* mf = from_GPU->pop();
+         if (mf) {
+            mf->set_link_depart(clk + this->latency);
+            to_cxl_buffer_waiting->push(mf);
+         }
          //assert(mf!=NULL);
-         mf->set_link_depart(clk + this->latency);
-         to_cxl_buffer_waiting->push(mf);
       }
    }
 
    if (!from_cxl_buffer->empty()) {
       if (!to_GPU_waiting->full()) {
+         acquire_to_gpu();
          mem_fetch* mf = from_cxl_buffer->pop();
-         
-         mf->set_link_depart(clk + this->latency);
-         to_GPU_waiting->push(mf);
+         release_to_gpu();
+         if (mf) {
+            mf->set_link_depart(clk + this->latency);
+            to_GPU_waiting->push(mf);
+         }
       }
    }
 
    if (!to_cxl_buffer_waiting->empty()) {
       if (!to_cxl_buffer->full()) {
          mem_fetch* mf = to_cxl_buffer_waiting->top();
-         if (mf->get_link_depart() <= this->clk) {
+         if (mf && mf->get_link_depart() <= this->clk) {
             mf->set_gpu_id(this->gpu_id);
             to_cxl_buffer->push(mf);
             to_cxl_buffer_waiting->pop();
@@ -114,7 +121,7 @@ void NVLink::cycle() {
    if (!to_GPU_waiting->empty()) {
       if (!to_GPU->full()) {
          mem_fetch* mf = to_GPU_waiting->top();
-         if (mf->get_link_depart() <= this->clk) {
+         if (mf && mf->get_link_depart() <= this->clk) {
             to_GPU->push(mf);
             to_GPU_waiting->pop();
          }   

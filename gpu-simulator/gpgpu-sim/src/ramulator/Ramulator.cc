@@ -49,7 +49,7 @@ Ramulator::Ramulator(unsigned memory_id, unsigned long long* cycles,
   // init fifo pipelines
   rwq =
       // new fifo_pipeline<mem_fetch>("completed read write queue", 0, 2);
-      new fifo_pipeline<mem_fetch>("completed read write queue", 0, 1024);
+      new fifo_pipeline<mem_fetch>("completed read write queue", 0, 2048);
   returnq = new fifo_pipeline<mem_fetch>(
       "ramulatorreturnq", 0,
       cxl_dram_return_queue_size == 0 ? 1024 : cxl_dram_return_queue_size);
@@ -80,6 +80,7 @@ void Ramulator::cycle() {
         mf->set_reply();
         returnq->push(mf);
       } else {
+        assert(0);
         // Todo :: after define migration access type 
         delete mf;
       }
@@ -152,7 +153,11 @@ void Ramulator::cycle() {
   memory->tick();
 }
 
-bool Ramulator::send(Request req) { return memory->send(req); }
+bool Ramulator::send(Request req) {
+  if (rwq->get_length() < rwq->get_max_len() * 0.8f)
+    return memory->send(req);
+  return false;
+}
 
 void Ramulator::push(class mem_fetch* mf) {
   from_gpgpusim->push(mf);
@@ -168,6 +173,7 @@ mem_fetch* Ramulator::return_queue_pop() const { return returnq->pop(); }
 void Ramulator::return_queue_push_back(mem_fetch* mf) { returnq->push(mf);}
 void Ramulator::readComplete(Request& req) {
   assert(req.mf != nullptr);
+  assert(!rwq->full());
   rwq->push(req.mf);
 }
 
