@@ -26,6 +26,9 @@ class cxl_memory_buffer {
   cxl_page_controller *page_controller;
   
   bool check_memory_cycle();
+  void process_mem_fetch_request_from_gpu();
+  void process_mem_fetch_request_to_gpu();
+  void push_nvlink(int link_num, mem_fetch* mf);
 };
 
 class cxl_memory_buffer_config {
@@ -40,6 +43,7 @@ class cxl_memory_buffer_config {
   int links_per_gpu;
   int gpu_cycle_frequency;
   int memory_cycle_frequency;
+  int migration_threshold;
   std::string ramulator_config_file;
   
   void parse_to_const(const string &name, const string &value);
