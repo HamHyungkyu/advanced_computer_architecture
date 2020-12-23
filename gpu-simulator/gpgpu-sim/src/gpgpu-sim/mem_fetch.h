@@ -129,7 +129,7 @@ class mem_fetch {
   bool isconst() const;
   enum mf_type get_type() const { return m_type; }
   bool isatomic() const;
-
+  gpgpu_context* get_gpgpu_context(){ return m_access.get_context();}
   void set_gpu_id(int gpu_id) { m_gpu_id = gpu_id; }
   void set_return_timestamp(unsigned t) { m_timestamp2 = t; }
   void set_icnt_receive_time(unsigned t) { m_icnt_receive_time = t; }

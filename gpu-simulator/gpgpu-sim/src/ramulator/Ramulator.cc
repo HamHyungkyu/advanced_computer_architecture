@@ -76,7 +76,8 @@ void Ramulator::cycle() {
     if (mf) {
       // Todo :: after define migration access type 
       if (mf->get_access_type() != L1_WRBK_ACC &&
-          mf->get_access_type() != L2_WRBK_ACC) {
+          mf->get_access_type() != L2_WRBK_ACC &&
+          mf->get_access_type() != CXL_WRITE_BACK_ACC) {
         mf->set_reply();
         returnq->push(mf);
       } else {
@@ -119,7 +120,7 @@ void Ramulator::cycle() {
     //mem_fetch* mf = from_gpgpusim->pop();
     mem_fetch* mf = from_gpgpusim->top();
     if (mf) {
-      if (mf->get_type() == READ_REQUEST) {
+      if (mf->get_type() == READ_REQUEST || mf->get_type() == CXL_WRITE_BACK) {
       assert(mf->is_write() == false);
       assert(mf->get_gpu_id() < (unsigned)num_cores);
       // Requested data size must be 32

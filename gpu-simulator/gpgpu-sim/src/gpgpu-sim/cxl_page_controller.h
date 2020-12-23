@@ -14,7 +14,8 @@ enum cxl_page_status {
   READ_SHARE,
   WRITE_SHARE,
   PENDING_WRITE_DATA,
-  PENDING_READ_INVALIDATION
+  PENDING_READ_INVALIDATION,
+  MAX
 };
 
 typedef struct {

@@ -43,15 +43,14 @@ void cxl_memory_buffer::process_mem_fetch_request_from_gpu() {
 
       if(from_gpu_mem_fetch->get_type() == mf_type::CXL_READ_ONLY_MIGRATION_AGREE || 
         from_gpu_mem_fetch->get_type() == mf_type::CXL_WIRTABLE_MIGRATION_AGREE){
+        //push_migration_requests(page_controller->generate_page_read_requests(from_gpu_mem_fetch));
         page_controller->set_shared_gpu(from_gpu_mem_fetch);
-        push_migration_requests(page_controller->generate_page_read_requests(from_gpu_mem_fetch));
       }
       else {
         from_gpu_mem_fetch->set_status(mem_fetch_status::IN_CXL_MEMORY_BUFFER, tot_cycles);
         ramulators[0]->push(from_gpu_mem_fetch);
         //Page controller job
         page_controller->access_count_up(from_gpu_mem_fetch);
-
         if(page_controller->check_writeable_migration(from_gpu_mem_fetch)){
           push_nvlink(i, page_controller->generate_migration_request(from_gpu_mem_fetch, true));
         }

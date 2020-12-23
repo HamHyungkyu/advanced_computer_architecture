@@ -32,6 +32,7 @@ public:
    bool gpu_page_access(mem_fetch *mf);
    void set_max_gpu_pages(int max);
    page_entry evict_LRU_page(); //LRU
+   page_entry LRU_page_entry() {return pages.front();}; //LRU
    void save_migration(mem_fetch *mf);
    void push_write_back_requests(int cycels, mem_fetch* mf);
    bool is_write_back_buffer_empty() {return write_back_buffer.empty();};

@@ -1,4 +1,5 @@
 #include "page_manager.h"
+#include <iostream>
 
 bool page_manager::gpu_full() {
    if (pages.size() < max_gpu_pages)
@@ -75,7 +76,7 @@ void page_manager::save_migration(mem_fetch *mf) {
    assert(is_allocated(mf->get_addr())==page_location::GPU);
    unsigned long long vpn_for_req = mf->get_addr() >> 12;
    std::list<page_entry>::iterator it;
-
+   std::cout << "CXL_MIGRATION SAVE";
    for (it = pages.begin(); it != pages.end(); it++) {
       if (it->vpn == vpn_for_req) {
          assert(it->status == page_status::PENDING_MIGRATION);
@@ -89,26 +90,20 @@ void page_manager::save_migration(mem_fetch *mf) {
 
 
 void page_manager::push_write_back_requests(int cycles, mem_fetch* mf) {
-   assert(is_allocated(mf->get_addr())==page_location::GPU);
-   unsigned long long vpn_for_req = mf->get_addr() >> 12;
    std::list<page_entry>::iterator it;
-
-   for (it = pages.begin(); it != pages.end(); it++) {
-      if (it->vpn == vpn_for_req) {
-         it->status = page_status::PENDING_WRITE_BACK;
-         it->location = page_location::CXL;
-         for(int i = 0; i < PAGESIZE/MEMFETCH_SIZE; i++){
-            new_addr_type addr = vpn_for_req << 12;
-            mem_access_t *access = new mem_access_t(mem_access_type::CXL_WRITE_BACK_ACC, addr + i* MEMFETCH_SIZE,
-               MEMFETCH_SIZE, false, NULL);
-            mem_fetch *write_back_mf = new mem_fetch(*access, cycles, mf);
-            write_back_buffer.push_back(mf);
-         }
-         mf->set_migration_agree();
-         write_back_buffer.push_back(mf);
-      }
+   page_entry entry = pages.front();
+   for(int i = 0; i < PAGESIZE/MEMFETCH_SIZE; i++){
+      new_addr_type addr = entry.vpn << 12;
+      mem_access_t *access = new mem_access_t(mem_access_type::CXL_WRITE_BACK_ACC, addr + i* MEMFETCH_SIZE,
+         MEMFETCH_SIZE, false, mf->get_gpgpu_context());
+      mem_fetch *write_back_mf = new mem_fetch(*access, cycles, mf);
+      write_back_buffer.push_back(mf);
    }
+   mf->set_migration_agree();
+   write_back_buffer.push_back(mf);
+   pages.pop_front(); 
 }
+
 mem_fetch* page_manager::pop_write_back_buffer() {
    mem_fetch *result = write_back_buffer.front();
    write_back_buffer.pop_front();

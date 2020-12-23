@@ -2331,13 +2331,13 @@ void gpgpu_sim::process_mem_fetch_from_cxl(){
       bool read_only = mf->get_type() == mf_type::CXL_READ_ONLY_MIGRATION_REQUEST? true : false;
       m_link->to_GPU_pop();
       if(m_page_manager.gpu_full()){
-        page_entry entry = m_page_manager.evict_LRU_page();
+        page_entry entry = m_page_manager.LRU_page_entry();
         if(entry.read_only){
           mf->set_migration_agree();
           m_link->push_from_GPU(mf);
         }
         else {
-          m_page_manager.push_write_back_requests(gpu_sim_cycle + gpu_tot_sim_cycle, mf);
+          //m_page_manager.push_write_back_requests(gpu_sim_cycle + gpu_tot_sim_cycle, mf);
         }
       }
       else {
