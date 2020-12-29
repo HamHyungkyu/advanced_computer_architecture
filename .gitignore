@@ -3,4 +3,5 @@ gpu-app-collection/
 hw_run/
 sim_run_*
 *.DS_Store*
-./vscode
+.vscode
+util/tracer_nvbit/traces/
