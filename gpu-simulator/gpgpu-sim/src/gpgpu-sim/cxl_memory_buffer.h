@@ -36,7 +36,7 @@ class cxl_memory_buffer {
 
 class cxl_memory_buffer_config {
  public:
-  cxl_memory_buffer_config(std::string config_path);
+  cxl_memory_buffer_config(std::string config_path, int num_gpus);
 
   int get_links_per_gpu() { return links_per_gpu; }
 

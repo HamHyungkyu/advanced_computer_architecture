@@ -59,9 +59,9 @@ static int ready_counter = 0;
 
 gpgpu_sim *gpgpu_trace_sim_init_perf_model(int argc, const char *argv[],
                                            gpgpu_context *m_gpgpu_context,
-                                           class trace_config *m_config, int num_gpu);
+                                           class trace_config *m_config, int num_gpus);
 int parse_num_gpus(int argc, const char **argv);
-cxl_memory_buffer_config *parse_cxl_config(int argc, const char **argv);
+cxl_memory_buffer_config *parse_cxl_config(int argc, const char **argv, int num_gpus);
 bool check_scheduling(std::string kernel_name);
 bool check_sync_device_finished(int num_gpus);
 bool check_all_gpu_sim_active(int num_gpus);
@@ -78,7 +78,7 @@ int main(int argc, const char **argv)
   gpgpu_context *m_gpgpu_contexts[num_gpus];
   trace_config *m_trace_configs[num_gpus];
   gpgpu_sim *m_gpgpu_sims[num_gpus];
-  cxl_memory_buffer_config *cxl_config = parse_cxl_config(argc, argv);
+  cxl_memory_buffer_config *cxl_config = parse_cxl_config(argc, argv, num_gpus);
   cxl_memory_buffer *m_cxl_memory_buffer = new cxl_memory_buffer(cxl_config);
   std::vector<std::thread> threads;
   for (int i = 0; i < num_gpus; i++)
@@ -324,7 +324,7 @@ int parse_num_gpus(int argc, const char **argv)
   return num_gpus;
 }
 
-cxl_memory_buffer_config *parse_cxl_config(int argc, const char **argv)
+cxl_memory_buffer_config *parse_cxl_config(int argc, const char **argv, int num_gpus)
 {
   std::string config_path;
   for (int i = 1; i < argc - 1; i++)
@@ -332,7 +332,7 @@ cxl_memory_buffer_config *parse_cxl_config(int argc, const char **argv)
     if (std::string(argv[i]) == "-cxl_config")
     {
       config_path = std::string(argv[i + 1]);
-      return new cxl_memory_buffer_config(config_path);
+      return new cxl_memory_buffer_config(config_path, num_gpus);
     }
   }
   return NULL;

@@ -118,7 +118,8 @@ void cxl_memory_buffer::push_migration_requests(mem_fetch **requests) {
 /*
  * CXL memory buffer configs
  */
-cxl_memory_buffer_config::cxl_memory_buffer_config(std::string config_path) {
+cxl_memory_buffer_config::cxl_memory_buffer_config(std::string config_path, int num_gpus) {
+  this->num_gpus = num_gpus;
   std::ifstream file(config_path);
   assert(file.good() && "Bad config file");
   std::string line;
@@ -156,10 +157,7 @@ cxl_memory_buffer_config::cxl_memory_buffer_config(std::string config_path) {
 
 void cxl_memory_buffer_config::parse_to_const(const string& name,
                                               const string& value) {
-  if (name == "num_gpus") {
-    num_gpus = atoi(value.c_str());
-  } 
-  else if (name == "num_memories") {
+  if (name == "num_memories") {
     num_memories = atoi(value.c_str());
   } else if (name == "links_per_gpu") {
     links_per_gpu = atoi(value.c_str());
