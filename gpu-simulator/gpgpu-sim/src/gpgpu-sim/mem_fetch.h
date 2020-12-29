@@ -38,9 +38,14 @@ enum mf_type {
   WRITE_REQUEST,
   READ_REPLY,  // send to shader
   WRITE_ACK,
-  CXL_REQ,
-  CXL_ACK,
-  CXL_REPLY
+  CXL_INVALIDATION_REQUEST,
+  CXL_READ_ONLY_MIGRATION_REQUEST,
+  CXL_READ_ONLY_MIGRATION_AGREE,
+  CXL_WIRTABLE_MIGRATION_REQUEST,
+  CXL_WIRTABLE_MIGRATION_AGREE,
+  CXL_WRITE_BACK,
+  CXL_READ_ONLY_MIGRATION_DATA,
+  CXL_WIRTABLE_MIGRATION_DATA
 };
 
 #define MF_TUP_BEGIN(X) enum X {
@@ -60,6 +65,11 @@ class mem_fetch {
             unsigned ctrl_size, unsigned wid, unsigned sid, unsigned tpc,
             const memory_config *config, unsigned long long cycle,
             mem_fetch *original_mf = NULL, mem_fetch *original_wr_mf = NULL);
+  mem_fetch(const mem_access_t &access, const warp_inst_t *inst,
+            unsigned ctrl_size, unsigned wid, unsigned sid, unsigned tpc,
+            int gpu_id, const memory_config *config, unsigned long long cycle,
+            mem_fetch *original_mf = NULL, mem_fetch *original_wr_mf = NULL);
+  mem_fetch(const mem_access_t &access, unsigned long long cycle, mem_fetch *original_mf);
   ~mem_fetch();
 
   void set_status(enum mem_fetch_status status, unsigned long long cycle);
@@ -74,6 +84,17 @@ class mem_fetch {
       m_type = WRITE_ACK;
     }
   }
+  void set_page_invalid() { m_type = CXL_INVALIDATION_REQUEST; }
+  void set_read_only_migartion_request() { m_type = CXL_READ_ONLY_MIGRATION_REQUEST; }
+  void set_writable_migartion_request() { m_type = CXL_WIRTABLE_MIGRATION_REQUEST; }
+  void set_migration_agree(){ 
+    assert(m_type == CXL_READ_ONLY_MIGRATION_REQUEST || m_type == CXL_WIRTABLE_MIGRATION_REQUEST);
+    if (m_type == CXL_READ_ONLY_MIGRATION_REQUEST) {
+      m_type = CXL_READ_ONLY_MIGRATION_AGREE; 
+    } else if (m_type == CXL_WIRTABLE_MIGRATION_REQUEST) {
+      m_type = CXL_WIRTABLE_MIGRATION_AGREE;
+    }
+  }
   void do_atomic();
 
   void print(FILE *fp, bool print_inst = true) const;
@@ -85,6 +106,11 @@ class mem_fetch {
   }
   unsigned get_data_size() const { return m_data_size; }
   void set_data_size(unsigned size) { m_data_size = size; }
+  // Todo: contorl dirty mask
+  std::bitset<SECTOR_CHUNCK_SIZE> get_dirty_mask() { return m_dirty_mask; }
+  void set_dirty_mask(std::bitset<SECTOR_CHUNCK_SIZE> dirty_mask) {
+    m_dirty_mask = dirty_mask;
+  }
   unsigned get_ctrl_size() const { return m_ctrl_size; }
   unsigned size() const { return m_data_size + m_ctrl_size; }
   bool is_write() { return m_access.is_write(); }
@@ -95,6 +121,7 @@ class mem_fetch {
   unsigned get_sub_partition_id() const { return m_raw_addr.sub_partition; }
   bool get_is_write() const { return m_access.is_write(); }
   unsigned get_request_uid() const { return m_request_uid; }
+  int get_gpu_id() const { return m_gpu_id; }
   unsigned get_sid() const { return m_sid; }
   unsigned get_tpc() const { return m_tpc; }
   unsigned get_wid() const { return m_wid; }
@@ -102,7 +129,8 @@ class mem_fetch {
   bool isconst() const;
   enum mf_type get_type() const { return m_type; }
   bool isatomic() const;
-
+  gpgpu_context* get_gpgpu_context(){ return m_access.get_context();}
+  void set_gpu_id(int gpu_id) { m_gpu_id = gpu_id; }
   void set_return_timestamp(unsigned t) { m_timestamp2 = t; }
   void set_icnt_receive_time(unsigned t) { m_icnt_receive_time = t; }
   unsigned get_timestamp() const { return m_timestamp; }
@@ -131,12 +159,20 @@ class mem_fetch {
   mem_fetch *get_original_mf() { return original_mf; }
   mem_fetch *get_original_wr_mf() { return original_wr_mf; }
 
+  //hyunuk
+  void set_link_depart(unsigned long long clk) { m_link_depart = clk; }
+  unsigned long long get_link_depart() { return m_link_depart; }
  private:
   // request source information
   unsigned m_request_uid;
   unsigned m_sid;
   unsigned m_tpc;
   unsigned m_wid;
+  int m_gpu_id;
+  //hyunuk
+  unsigned long long m_link_depart;
+
+  std::bitset<SECTOR_CHUNCK_SIZE> m_dirty_mask;
 
   // where is this request now?
   enum mem_fetch_status m_status;

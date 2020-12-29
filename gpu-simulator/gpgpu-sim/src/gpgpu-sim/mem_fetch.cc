@@ -53,6 +53,7 @@ mem_fetch::mem_fetch(const mem_access_t &access, const warp_inst_t *inst,
   m_sid = sid;
   m_tpc = tpc;
   m_wid = wid;
+  m_gpu_id = -1;
   config->m_address_mapping.addrdec_tlx(access.get_addr(), &m_raw_addr);
   m_partition_addr =
       config->m_address_mapping.partition_address(access.get_addr());
@@ -70,6 +71,81 @@ mem_fetch::mem_fetch(const mem_access_t &access, const warp_inst_t *inst,
     m_raw_addr.sub_partition = m_original_mf->get_tlx_addr().sub_partition;
   }
 }
+mem_fetch::mem_fetch(const mem_access_t &access, const warp_inst_t *inst,
+                     unsigned ctrl_size, unsigned wid, unsigned sid,
+                     unsigned tpc, int gpu_id, const memory_config *config,
+                     unsigned long long cycle, mem_fetch *m_original_mf,
+                     mem_fetch *m_original_wr_mf)
+    : m_access(access)
+
+{
+  m_request_uid = sm_next_mf_request_uid++;
+  m_access = access;
+  if (inst) {
+    m_inst = *inst;
+    assert(wid == m_inst.warp_id());
+  }
+  m_data_size = access.get_size();
+  m_ctrl_size = ctrl_size;
+  m_sid = sid;
+  m_tpc = tpc;
+  m_wid = wid;
+  m_gpu_id = gpu_id;
+  config->m_address_mapping.addrdec_tlx(access.get_addr(), &m_raw_addr);
+  m_partition_addr =
+      config->m_address_mapping.partition_address(access.get_addr());
+  m_type = m_access.is_write() ? WRITE_REQUEST : READ_REQUEST;
+  m_timestamp = cycle;
+  m_timestamp2 = 0;
+  m_status = MEM_FETCH_INITIALIZED;
+  m_status_change = cycle;
+  m_mem_config = config;
+  icnt_flit_size = config->icnt_flit_size;
+  original_mf = m_original_mf;
+  original_wr_mf = m_original_wr_mf;
+  if (m_original_mf) {
+    m_raw_addr.chip = m_original_mf->get_tlx_addr().chip;
+    m_raw_addr.sub_partition = m_original_mf->get_tlx_addr().sub_partition;
+  }
+}
+
+mem_fetch::mem_fetch(const mem_access_t &access, unsigned long long cycles, mem_fetch *m_original_mf)
+  :m_access(access)
+{
+  m_request_uid = sm_next_mf_request_uid++;
+  m_data_size = m_original_mf->m_access.get_size();
+  m_ctrl_size = m_original_mf->m_ctrl_size;
+  m_sid = m_original_mf->m_sid;
+  m_tpc = m_original_mf->m_tpc;
+  m_wid = m_original_mf->m_wid;
+  m_gpu_id = m_original_mf->m_gpu_id;
+  m_mem_config = m_original_mf->m_mem_config;
+  m_mem_config->m_address_mapping.addrdec_tlx(m_access.get_addr(), &m_raw_addr);
+  m_partition_addr =
+      m_mem_config->m_address_mapping.partition_address(m_access.get_addr());  m_type = m_original_mf->m_type;
+  switch(m_original_mf->get_type()){
+    case CXL_READ_ONLY_MIGRATION_AGREE:
+      m_type = CXL_READ_ONLY_MIGRATION_DATA;
+      break;
+    case CXL_WIRTABLE_MIGRATION_AGREE:
+      m_type = CXL_WIRTABLE_MIGRATION_DATA;
+      break;
+    default:
+      m_type = m_access.get_type() == mem_access_type::CXL_WRITE_BACK_ACC? CXL_WRITE_BACK: CXL_READ_ONLY_MIGRATION_REQUEST;
+  }
+  m_timestamp = cycles;
+  m_timestamp2 = 0;
+  m_status = MEM_FETCH_INITIALIZED;
+  m_status_change = cycles;
+  icnt_flit_size = m_mem_config->icnt_flit_size;
+  original_mf = m_original_mf;
+  original_wr_mf = NULL;
+  if (m_original_mf) {
+    m_raw_addr.chip = m_original_mf->get_tlx_addr().chip;
+    m_raw_addr.sub_partition = m_original_mf->get_tlx_addr().sub_partition;
+  }
+}
+
 
 mem_fetch::~mem_fetch() { m_status = MEM_FETCH_DELETED; }
 

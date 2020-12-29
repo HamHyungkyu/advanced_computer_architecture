@@ -233,10 +233,10 @@ class OptionParser {
         ParseFile(argv[i + 1]);
         i += 1;
         optionFound = true;
-      }
-      else if (string(argv[i]) == "-num_gpus"){
+      } else if (string(argv[i]) == "-num_gpus" ||
+                 string(argv[i]) == "-cxl_config") {
         optionFound = true;
-        i+=1;
+        i += 1;
       }
       if (optionFound == false) {
         fprintf(stderr, "\n\nGPGPU-Sim ** ERROR: Unknown Option: '%s' \n",

@@ -732,13 +732,14 @@ const unsigned SECTOR_SIZE = 32;        // sector is 32 bytes width
 typedef std::bitset<SECTOR_CHUNCK_SIZE> mem_access_sector_mask_t;
 #define NO_PARTIAL_WRITE (mem_access_byte_mask_t())
 
-#define MEM_ACCESS_TYPE_TUP_DEF                                         \
-  MA_TUP_BEGIN(mem_access_type)                                         \
-  MA_TUP(GLOBAL_ACC_R), MA_TUP(LOCAL_ACC_R), MA_TUP(CONST_ACC_R),       \
-      MA_TUP(TEXTURE_ACC_R), MA_TUP(GLOBAL_ACC_W), MA_TUP(LOCAL_ACC_W), \
-      MA_TUP(L1_WRBK_ACC), MA_TUP(L2_WRBK_ACC), MA_TUP(INST_ACC_R),     \
-      MA_TUP(L1_WR_ALLOC_R), MA_TUP(L2_WR_ALLOC_R),                     \
-      MA_TUP(NUM_MEM_ACCESS_TYPE), MA_TUP(CXL_NDP)  MA_TUP_END(mem_access_type)
+#define MEM_ACCESS_TYPE_TUP_DEF                                            \
+  MA_TUP_BEGIN(mem_access_type)                                            \
+  MA_TUP(GLOBAL_ACC_R), MA_TUP(LOCAL_ACC_R), MA_TUP(CONST_ACC_R),          \
+      MA_TUP(TEXTURE_ACC_R), MA_TUP(GLOBAL_ACC_W), MA_TUP(LOCAL_ACC_W),    \
+      MA_TUP(L1_WRBK_ACC), MA_TUP(L2_WRBK_ACC), MA_TUP(INST_ACC_R),        \
+      MA_TUP(L1_WR_ALLOC_R), MA_TUP(L2_WR_ALLOC_R),                        \
+      MA_TUP(NUM_MEM_ACCESS_TYPE), MA_TUP(CXL_ACC_NDP), MA_TUP(CXL_MESSAGE), \
+      MA_TUP(CXL_MIGRATION), MA_TUP(CXL_WRITE_BACK_ACC) MA_TUP_END(mem_access_type)
 
 #define MA_TUP_BEGIN(X) enum X {
 #define MA_TUP(X) X
@@ -803,7 +804,7 @@ class mem_access_t {
   enum mem_access_type get_type() const { return m_type; }
   mem_access_byte_mask_t get_byte_mask() const { return m_byte_mask; }
   mem_access_sector_mask_t get_sector_mask() const { return m_sector_mask; }
-
+  gpgpu_context* get_context() {return gpgpu_ctx; }
   void print(FILE *fp) const {
     fprintf(fp, "addr=0x%llx, %s, size=%u, ", m_addr,
             m_write ? "store" : "load ", m_req_size);
@@ -834,6 +835,18 @@ class mem_access_t {
         break;
       case L1_WRBK_ACC:
         fprintf(fp, "L1_WRBK ");
+        break;
+      case CXL_ACC_NDP:
+        fprintf(fp, "CXL_NDP");
+        break;
+      case CXL_MESSAGE:
+        fprintf(fp, "CXL_MESSAGE");
+        break;
+      case CXL_MIGRATION:
+        fprintf(fp, "CXL_MIGRATION");
+        break;
+      case CXL_WRITE_BACK_ACC:
+        fprintf(fp, "CXL_WRITE_BACK_ACC");
         break;
       default:
         fprintf(fp, "unknown ");
@@ -933,9 +946,7 @@ class inst_t {
     return (op == STORE_OP || op == TENSOR_CORE_STORE_OP ||
             memory_op == memory_store);
   }
-  bool is_cxl() const {
-    return (op == CXL_NDP_OP);
-  }
+  bool is_cxl() const { return (op == CXL_NDP_OP); }
   unsigned get_num_operands() const { return num_operands; }
   unsigned get_num_regs() const { return num_regs; }
   void set_num_regs(unsigned num) { num_regs = num; }

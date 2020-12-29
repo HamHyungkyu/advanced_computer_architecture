@@ -313,7 +313,7 @@ void warp_inst_t::generate_mem_accesses() {
     case sstarr_space:
       break;
     case cxl_memory_buffer_space:
-      access_type = CXL_NDP;
+      access_type = CXL_ACC_NDP;
     default:
       assert(0);
       break;

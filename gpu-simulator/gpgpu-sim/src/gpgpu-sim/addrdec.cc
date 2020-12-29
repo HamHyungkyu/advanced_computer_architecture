@@ -52,6 +52,7 @@ linear_to_raw_address_translation::linear_to_raw_address_translation() {
   addrdec_mask[2] = 0x000000000FFF0000;
   addrdec_mask[3] = 0x000000000000E0FF;
   addrdec_mask[4] = 0x000000000000000F;
+  addrdec_mask[5] = 0x0000000000000000;
 }
 
 void linear_to_raw_address_translation::addrdec_setoption(option_parser_t opp) {
@@ -96,6 +97,7 @@ void linear_to_raw_address_translation::addrdec_tlx(new_addr_type addr,
                                                     addrdec_t *tlx) const {
   unsigned long long int addr_for_chip, rest_of_addr, rest_of_addr_high_bits;
   if (!gap) {
+    //tlx->device = addrdec_packbits();
     tlx->chip = addrdec_packbits(addrdec_mask[CHIP], addr, addrdec_mkhigh[CHIP],
                                  addrdec_mklow[CHIP]);
     tlx->bk = addrdec_packbits(addrdec_mask[BK], addr, addrdec_mkhigh[BK],
@@ -222,10 +224,15 @@ void linear_to_raw_address_translation::addrdec_parseoption(
   addrdec_mask[ROW] = 0x0;
   addrdec_mask[COL] = 0x0;
   addrdec_mask[BURST] = 0x0;
-
+  addrdec_mask[GPU_DEVICE] = 0x0;
   int ofs = 63;
   while ((*cmapping) != '\0') {
     switch (*cmapping) {
+      case 'G':
+      case 'g':
+        addrdec_mask[GPU_DEVICE] |= (1ULL << ofs);
+        ofs--;
+        break;
       case 'D':
       case 'd':
         assert(dramid_parsed != 1);
@@ -303,6 +310,7 @@ void linear_to_raw_address_translation::init(
       addrdec_mask[BK] = 0x0000000000000300;
       addrdec_mask[ROW] = 0x0000000007FFE000;
       addrdec_mask[COL] = 0x0000000000001CFF;
+      addrdec_mask[GPU_DEVICE] = 0x0000000000000000;
       break;
     case 1:
       ADDR_CHIP_S = 13;
@@ -310,6 +318,7 @@ void linear_to_raw_address_translation::init(
       addrdec_mask[BK] = 0x0000000000001800;
       addrdec_mask[ROW] = 0x0000000007FFE000;
       addrdec_mask[COL] = 0x00000000000007FF;
+      addrdec_mask[GPU_DEVICE] = 0x0000000000000000;
       break;
     case 2:
       ADDR_CHIP_S = 11;
@@ -317,6 +326,7 @@ void linear_to_raw_address_translation::init(
       addrdec_mask[BK] = 0x0000000000001800;
       addrdec_mask[ROW] = 0x0000000007FFE000;
       addrdec_mask[COL] = 0x00000000000007FF;
+      addrdec_mask[GPU_DEVICE] = 0x0000000000000000;
       break;
     case 3:
       ADDR_CHIP_S = 11;
@@ -324,6 +334,7 @@ void linear_to_raw_address_translation::init(
       addrdec_mask[BK] = 0x0000000000001800;
       addrdec_mask[ROW] = 0x000000000FFFE000;
       addrdec_mask[COL] = 0x00000000000007FF;
+      addrdec_mask[GPU_DEVICE] = 0x0000000000000000;
       break;
 
     case 14:
@@ -332,6 +343,7 @@ void linear_to_raw_address_translation::init(
       addrdec_mask[BK] = 0x0000000000001800;
       addrdec_mask[ROW] = 0x0000000007FFE000;
       addrdec_mask[COL] = 0x00000000000007FF;
+      addrdec_mask[GPU_DEVICE] = 0x0000000000000000;
       break;
     case 15:
       ADDR_CHIP_S = 15;
@@ -339,6 +351,7 @@ void linear_to_raw_address_translation::init(
       addrdec_mask[BK] = 0x0000000000001800;
       addrdec_mask[ROW] = 0x0000000007FFE000;
       addrdec_mask[COL] = 0x00000000000007FF;
+      addrdec_mask[GPU_DEVICE] = 0x0000000000000000;
       break;
     case 16:
       ADDR_CHIP_S = 16;
@@ -346,6 +359,7 @@ void linear_to_raw_address_translation::init(
       addrdec_mask[BK] = 0x0000000000001800;
       addrdec_mask[ROW] = 0x0000000007FFE000;
       addrdec_mask[COL] = 0x00000000000007FF;
+      addrdec_mask[GPU_DEVICE] = 0x0000000000000000;
       break;
     case 6:
       ADDR_CHIP_S = 6;
@@ -353,6 +367,7 @@ void linear_to_raw_address_translation::init(
       addrdec_mask[BK] = 0x0000000000001800;
       addrdec_mask[ROW] = 0x0000000007FFE000;
       addrdec_mask[COL] = 0x00000000000007FF;
+      addrdec_mask[GPU_DEVICE] = 0x0000000000000000;
       break;
     case 5:
       ADDR_CHIP_S = 5;
@@ -360,6 +375,7 @@ void linear_to_raw_address_translation::init(
       addrdec_mask[BK] = 0x0000000000001800;
       addrdec_mask[ROW] = 0x0000000007FFE000;
       addrdec_mask[COL] = 0x00000000000007FF;
+      addrdec_mask[GPU_DEVICE] = 0x0000000000000000;
       break;
     case 100:
       ADDR_CHIP_S = 1;
@@ -367,6 +383,7 @@ void linear_to_raw_address_translation::init(
       addrdec_mask[BK] = 0x0000000000000003;
       addrdec_mask[ROW] = 0x0000000007FFE000;
       addrdec_mask[COL] = 0x0000000000001FFC;
+      addrdec_mask[GPU_DEVICE] = 0x0000000000000000;
       break;
     case 103:
       ADDR_CHIP_S = 3;
@@ -374,6 +391,7 @@ void linear_to_raw_address_translation::init(
       addrdec_mask[BK] = 0x0000000000000003;
       addrdec_mask[ROW] = 0x0000000007FFE000;
       addrdec_mask[COL] = 0x0000000000001FFC;
+      addrdec_mask[GPU_DEVICE] = 0x0000000000000000;
       break;
     case 106:
       ADDR_CHIP_S = 6;
@@ -381,6 +399,7 @@ void linear_to_raw_address_translation::init(
       addrdec_mask[BK] = 0x0000000000001800;
       addrdec_mask[ROW] = 0x0000000007FFE000;
       addrdec_mask[COL] = 0x00000000000007FF;
+      addrdec_mask[GPU_DEVICE] = 0x0000000000000000;
       break;
     case 160:
       // old, added 2row bits, use #define ADDR_CHIP_S 10
@@ -389,7 +408,7 @@ void linear_to_raw_address_translation::init(
       addrdec_mask[BK] = 0x0000000000000300;
       addrdec_mask[ROW] = 0x0000000007FFE000;
       addrdec_mask[COL] = 0x0000000000001CFF;
-
+      addrdec_mask[GPU_DEVICE] = 0x0000000000000000;
     default:
       break;
   }
@@ -442,7 +461,8 @@ void linear_to_raw_address_translation::init(
          addrdec_mkhigh[COL], addrdec_mklow[COL]);
   printf("addr_dec_mask[BURST] = %016llx \thigh:%d low:%d\n",
          addrdec_mask[BURST], addrdec_mkhigh[BURST], addrdec_mklow[BURST]);
-
+  printf("addr_dec_mask[GPU_DEVICE]  = %016llx \thigh:%d low:%d\n",
+         addrdec_mask[GPU_DEVICE], addrdec_mkhigh[GPU_DEVICE], addrdec_mklow[GPU_DEVICE]);
   // create the sub partition ID mask (for removing the sub partition ID from
   // the partition address)
   sub_partition_id_mask = 0;
@@ -533,6 +553,7 @@ void linear_to_raw_address_translation::sweep_test() const {
 }
 
 void addrdec_t::print(FILE *fp) const {
+  fprintf(fp, "\tdevice:%x", device);
   fprintf(fp, "\tchip:%x ", chip);
   fprintf(fp, "\trow:%x ", row);
   fprintf(fp, "\tcol:%x ", col);

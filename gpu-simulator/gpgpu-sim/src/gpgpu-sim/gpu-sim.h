@@ -40,6 +40,9 @@
 #include "gpu-cache.h"
 #include "shader.h"
 
+// hyunuk
+//#include "page_manager.h"
+
 // constants for statistics printouts
 #define GPU_RSTAT_SHD_INFO 0x1
 #define GPU_RSTAT_BW_STAT 0x2
@@ -66,28 +69,19 @@ class gpgpu_context;
 
 extern tr1_hash_map<new_addr_type, unsigned> address_random_interleaving;
 
-enum dram_ctrl_t
-{
-  DRAM_FIFO = 0,
-  DRAM_FRFCFS = 1
-};
+enum dram_ctrl_t { DRAM_FIFO = 0, DRAM_FRFCFS = 1 };
 
-struct power_config
-{
+struct power_config {
   power_config() { m_valid = true; }
-  void init()
-  {
+  void init() {
     // initialize file name if it is not set
     time_t curr_time;
     time(&curr_time);
     char *date = ctime(&curr_time);
     char *s = date;
-    while (*s)
-    {
-      if (*s == ' ' || *s == '\t' || *s == ':')
-        *s = '-';
-      if (*s == '\n' || *s == '\r')
-        *s = 0;
+    while (*s) {
+      if (*s == ' ' || *s == '\t' || *s == ':') *s = '-';
+      if (*s == '\n' || *s == '\r') *s = 0;
       s++;
     }
     char buf1[1024];
@@ -104,8 +98,7 @@ struct power_config
              date);
     g_steady_state_tracking_filename = strdup(buf4);
 
-    if (g_steady_power_levels_enabled)
-    {
+    if (g_steady_power_levels_enabled) {
       sscanf(gpu_steady_state_definition, "%lf:%lf",
              &gpu_steady_power_deviation, &gpu_steady_min_period);
     }
@@ -142,21 +135,17 @@ struct power_config
   double gpu_min_inc_per_active_sm;
 };
 
-class memory_config
-{
-public:
-  memory_config(gpgpu_context *ctx)
-  {
+class memory_config {
+ public:
+  memory_config(gpgpu_context *ctx) {
     m_valid = false;
     gpgpu_dram_timing_opt = NULL;
     gpgpu_L2_queue_config = NULL;
     gpgpu_ctx = ctx;
   }
-  void init()
-  {
+  void init() {
     assert(gpgpu_dram_timing_opt);
-    if (strchr(gpgpu_dram_timing_opt, '=') == NULL)
-    {
+    if (strchr(gpgpu_dram_timing_opt, '=') == NULL) {
       // dram timing option in ordered variables (legacy)
       // Disabling bank groups if their values are not specified
       nbkgrp = 1;
@@ -165,9 +154,7 @@ public:
       sscanf(gpgpu_dram_timing_opt, "%d:%d:%d:%d:%d:%d:%d:%d:%d:%d:%d:%d:%d:%d",
              &nbk, &tCCD, &tRRD, &tRCD, &tRAS, &tRP, &tRC, &CL, &WL, &tCDLR,
              &tWR, &nbkgrp, &tCCDL, &tRTPL);
-    }
-    else
-    {
+    } else {
       // named dram timing options (unordered)
       option_parser_t dram_opp = option_parser_create();
 
@@ -216,27 +203,23 @@ public:
 
     int nbkt = nbk / nbkgrp;
     unsigned i;
-    for (i = 0; nbkt > 0; i++)
-    {
+    for (i = 0; nbkt > 0; i++) {
       nbkt = nbkt >> 1;
     }
     bk_tag_length = i - 1;
     assert(nbkgrp > 0 && "Number of bank groups cannot be zero");
     tRCDWR = tRCD - (WL + 1);
-    if (elimnate_rw_turnaround)
-    {
+    if (elimnate_rw_turnaround) {
       tRTW = 0;
       tWTR = 0;
-    }
-    else
-    {
+    } else {
       tRTW = (CL + (BL / data_command_freq_ratio) + 2 - WL);
       tWTR = (WL + (BL / data_command_freq_ratio) + tCDLR);
     }
     tWTP = (WL + (BL / data_command_freq_ratio) + tWR);
     dram_atom_size =
-        BL * busW * gpu_n_mem_per_ctrlr; // burst length x bus width x # chips
-                                         // per partition
+        BL * busW * gpu_n_mem_per_ctrlr;  // burst length x bus width x # chips
+                                          // per partition
 
     assert(m_n_sub_partition_per_memory_channel > 0);
     assert((nbk % m_n_sub_partition_per_memory_channel == 0) &&
@@ -278,46 +261,46 @@ public:
 
   // DRAM parameters
 
-  unsigned tCCDL; // column to column delay when bank groups are enabled
-  unsigned tRTPL; // read to precharge delay when bank groups are enabled for
-                  // GDDR5 this is identical to RTPS, if for other DRAM this is
-                  // different, you will need to split them in two
+  unsigned tCCDL;  // column to column delay when bank groups are enabled
+  unsigned tRTPL;  // read to precharge delay when bank groups are enabled for
+                   // GDDR5 this is identical to RTPS, if for other DRAM this is
+                   // different, you will need to split them in two
 
-  unsigned tCCD;   // column to column delay
-  unsigned tRRD;   // minimal time required between activation of rows in
-                   // different banks
-  unsigned tRCD;   // row to column delay - time required to activate a row
-                   // before a read
-  unsigned tRCDWR; // row to column delay for a write command
-  unsigned tRAS;   // time needed to activate row
-  unsigned tRP;    // row precharge ie. deactivate row
+  unsigned tCCD;    // column to column delay
+  unsigned tRRD;    // minimal time required between activation of rows in
+                    // different banks
+  unsigned tRCD;    // row to column delay - time required to activate a row
+                    // before a read
+  unsigned tRCDWR;  // row to column delay for a write command
+  unsigned tRAS;    // time needed to activate row
+  unsigned tRP;     // row precharge ie. deactivate row
   unsigned
-      tRC;        // row cycle time ie. precharge current, then activate different row
-  unsigned tCDLR; // Last data-in to Read command (switching from write to
-                  // read)
-  unsigned tWR;   // Last data-in to Row precharge
+      tRC;  // row cycle time ie. precharge current, then activate different row
+  unsigned tCDLR;  // Last data-in to Read command (switching from write to
+                   // read)
+  unsigned tWR;    // Last data-in to Row precharge
 
-  unsigned CL;   // CAS latency
-  unsigned WL;   // WRITE latency
-  unsigned BL;   // Burst Length in bytes (4 in GDDR3, 8 in GDDR5)
-  unsigned tRTW; // time to switch from read to write
-  unsigned tWTR; // time to switch from write to read
-  unsigned tWTP; // time to switch from write to precharge in the same bank
+  unsigned CL;    // CAS latency
+  unsigned WL;    // WRITE latency
+  unsigned BL;    // Burst Length in bytes (4 in GDDR3, 8 in GDDR5)
+  unsigned tRTW;  // time to switch from read to write
+  unsigned tWTR;  // time to switch from write to read
+  unsigned tWTP;  // time to switch from write to precharge in the same bank
   unsigned busW;
 
-  unsigned nbkgrp; // number of bank groups (has to be power of 2)
+  unsigned nbkgrp;  // number of bank groups (has to be power of 2)
   unsigned
-      bk_tag_length; // number of bits that define a bank inside a bank group
+      bk_tag_length;  // number of bits that define a bank inside a bank group
 
   unsigned nbk;
 
   bool elimnate_rw_turnaround;
 
   unsigned
-      data_command_freq_ratio; // frequency ratio between DRAM data bus and
-                               // command bus (2 for GDDR3, 4 for GDDR5)
+      data_command_freq_ratio;  // frequency ratio between DRAM data bus and
+                                // command bus (2 for GDDR3, 4 for GDDR5)
   unsigned
-      dram_atom_size; // number of bytes transferred per read or write command
+      dram_atom_size;  // number of bytes transferred per read or write command
 
   linear_to_raw_address_translation m_address_mapping;
 
@@ -341,26 +324,23 @@ public:
 extern bool g_interactive_debugger_enabled;
 
 class gpgpu_sim_config : public power_config,
-                         public gpgpu_functional_sim_config
-{
-public:
+                         public gpgpu_functional_sim_config {
+ public:
   gpgpu_sim_config(gpgpu_context *ctx)
-      : m_shader_config(ctx), m_memory_config(ctx)
-  {
+      : m_shader_config(ctx), m_memory_config(ctx) {
     m_valid = false;
     gpgpu_ctx = ctx;
   }
-  gpgpu_sim_config(gpgpu_context *ctx, int gpu_number, FILE *output_file_porinter)
-      : m_shader_config(ctx), m_memory_config(ctx)
-  {
+  gpgpu_sim_config(gpgpu_context *ctx, int gpu_number,
+                   FILE *output_file_porinter)
+      : m_shader_config(ctx), m_memory_config(ctx) {
     output_file = output_file_porinter;
     gpu_num = gpu_number;
     m_valid = false;
     gpgpu_ctx = ctx;
   }
   void reg_options(class OptionParser *opp);
-  void init()
-  {
+  void init() {
     gpu_stat_sample_freq = 10000;
     gpu_runtime_stat_flag = 0;
     sscanf(gpgpu_runtime_stat, "%d:%x", &gpu_stat_sample_freq,
@@ -377,12 +357,9 @@ public:
     time(&curr_time);
     char *date = ctime(&curr_time);
     char *s = date;
-    while (*s)
-    {
-      if (*s == ' ' || *s == '\t' || *s == ':')
-        *s = '-';
-      if (*s == '\n' || *s == '\r')
-        *s = 0;
+    while (*s) {
+      if (*s == ' ' || *s == '\t' || *s == ':') *s = '-';
+      if (*s == '\n' || *s == '\r') *s = 0;
       s++;
     }
     char buf[1024];
@@ -400,14 +377,13 @@ public:
   size_t stack_limit() const { return stack_size_limit; }
   size_t heap_limit() const { return heap_size_limit; }
   size_t sync_depth_limit() const { return runtime_sync_depth_limit; }
-  size_t pending_launch_count_limit() const
-  {
+  size_t pending_launch_count_limit() const {
     return runtime_pending_launch_count_limit;
   }
 
   bool flush_l1() const { return gpgpu_flush_l1_cache; }
 
-private:
+ private:
   void init_clock_domains(void);
 
   // backward pointer
@@ -420,10 +396,14 @@ private:
   double icnt_freq;
   double dram_freq;
   double l2_freq;
+  double link_freq;
+
   double core_period;
   double icnt_period;
   double dram_period;
   double l2_period;
+  // hyunuk
+  double link_period;
 
   // GPGPU-Sim timing model options
   unsigned long long gpu_max_cycle_opt;
@@ -459,14 +439,13 @@ private:
   unsigned int gpgpu_compute_capability_minor;
   unsigned long long liveness_message_freq;
 
-  //gpu_number and output_file
+  // gpu_number and output_file
   FILE *output_file;
   int gpu_num;
   friend class gpgpu_sim;
 };
 
-struct occupancy_stats
-{
+struct occupancy_stats {
   occupancy_stats()
       : aggregate_warp_slot_filled(0), aggregate_theoretical_warp_slots(0) {}
   occupancy_stats(unsigned long long wsf, unsigned long long tws)
@@ -476,21 +455,18 @@ struct occupancy_stats
   unsigned long long aggregate_warp_slot_filled;
   unsigned long long aggregate_theoretical_warp_slots;
 
-  float get_occ_fraction() const
-  {
+  float get_occ_fraction() const {
     return float(aggregate_warp_slot_filled) /
            float(aggregate_theoretical_warp_slots);
   }
 
-  occupancy_stats &operator+=(const occupancy_stats &rhs)
-  {
+  occupancy_stats &operator+=(const occupancy_stats &rhs) {
     aggregate_warp_slot_filled += rhs.aggregate_warp_slot_filled;
     aggregate_theoretical_warp_slots += rhs.aggregate_theoretical_warp_slots;
     return *this;
   }
 
-  occupancy_stats operator+(const occupancy_stats &rhs) const
-  {
+  occupancy_stats operator+(const occupancy_stats &rhs) const {
     return occupancy_stats(
         aggregate_warp_slot_filled + rhs.aggregate_warp_slot_filled,
         aggregate_theoretical_warp_slots +
@@ -501,30 +477,26 @@ struct occupancy_stats
 class gpgpu_context;
 class ptx_instruction;
 
-class watchpoint_event
-{
-public:
-  watchpoint_event()
-  {
+class watchpoint_event {
+ public:
+  watchpoint_event() {
     m_thread = NULL;
     m_inst = NULL;
   }
-  watchpoint_event(const ptx_thread_info *thd, const ptx_instruction *pI)
-  {
+  watchpoint_event(const ptx_thread_info *thd, const ptx_instruction *pI) {
     m_thread = thd;
     m_inst = pI;
   }
   const ptx_thread_info *thread() const { return m_thread; }
   const ptx_instruction *inst() const { return m_inst; }
 
-private:
+ private:
   const ptx_thread_info *m_thread;
   const ptx_instruction *m_inst;
 };
 
-class gpgpu_sim : public gpgpu_t
-{
-public:
+class gpgpu_sim : public gpgpu_t {
+ public:
   gpgpu_sim(const gpgpu_sim_config &config, gpgpu_context *ctx);
 
   void set_prop(struct cudaDeviceProp *prop);
@@ -538,8 +510,7 @@ public:
   void init();
   void cycle();
   bool active();
-  bool cycle_insn_cta_max_hit()
-  {
+  bool cycle_insn_cta_max_hit() {
     return (m_config.gpu_max_cycle_opt && (gpu_tot_sim_cycle + gpu_sim_cycle) >=
                                               m_config.gpu_max_cycle_opt) ||
            (m_config.gpu_max_insn_opt &&
@@ -578,7 +549,7 @@ public:
 
   const gpgpu_sim_config &get_config() const { return m_config; }
   int get_gpu_num() const { return m_config.gpu_num; }
-
+  NVLink *get_NVLink() const { return m_link; }
   void gpu_print_stat();
   void dump_pipeline(int mask, int s, int m) const;
 
@@ -615,11 +586,13 @@ public:
   // backward pointer
   class gpgpu_context *gpgpu_ctx;
 
-private:
+  // hyunuk
+  page_manager m_page_manager;
+
+ private:
   FILE *output_file;
   // clocks
-  void
-  reinit_clock_domains(void);
+  void reinit_clock_domains(void);
   int next_clock_domain(void);
   void issue_block2core();
   void print_dram_stats(FILE *fout) const;
@@ -629,14 +602,17 @@ private:
   void shader_print_scheduler_stat(FILE *fout, bool print_dynamic_info) const;
   void visualizer_printstat();
   void print_shader_cycle_distro(FILE *fout) const;
-
+  void process_mem_fetch_from_cxl();
   void gpgpu_debug();
 
-protected:
+ protected:
   ///// data /////
   class simt_core_cluster **m_cluster;
   class memory_partition_unit **m_memory_partition_unit;
   class memory_sub_partition **m_memory_sub_partition;
+
+  // hyunuk
+  class NVLink *m_link;
 
   std::vector<kernel_info_t *> m_running_kernels;
   unsigned m_last_issued_kernel;
@@ -656,6 +632,8 @@ protected:
   double icnt_time;
   double dram_time;
   double l2_time;
+  // hyunuk
+  double link_time;
 
   // debug
   bool gpu_deadlock;
@@ -679,18 +657,18 @@ protected:
   std::map<std::string, FuncCache> m_special_cache_config;
 
   std::vector<std::string>
-      m_executed_kernel_names; //< names of kernel for stat printout
+      m_executed_kernel_names;  //< names of kernel for stat printout
   std::vector<unsigned>
-      m_executed_kernel_uids; //< uids of kernel launches for stat printout
+      m_executed_kernel_uids;  //< uids of kernel launches for stat printout
   std::map<unsigned, watchpoint_event> g_watchpoint_hits;
 
-  std::string executed_kernel_info_string(); //< format the kernel information
-                                             // into a string for stat printout
-  void clear_executed_kernel_info();         //< clear the kernel information after
-                                             // stat printout
+  std::string executed_kernel_info_string();  //< format the kernel information
+                                              // into a string for stat printout
+  void clear_executed_kernel_info();  //< clear the kernel information after
+                                      // stat printout
   virtual void createSIMTCluster() = 0;
 
-public:
+ public:
   unsigned long long gpu_sim_insn;
   unsigned long long gpu_tot_sim_insn;
   unsigned long long gpu_sim_insn_last_update;
@@ -717,21 +695,19 @@ public:
   void set_cache_config(std::string kernel_name);
 
   // Jin: functional simulation for CDP
-private:
+ private:
   // set by stream operation every time a functoinal simulation is done
   bool m_functional_sim;
   kernel_info_t *m_functional_sim_kernel;
 
-public:
+ public:
   bool is_functional_sim() { return m_functional_sim; }
   kernel_info_t *get_functional_kernel() { return m_functional_sim_kernel; }
-  void functional_launch(kernel_info_t *k)
-  {
+  void functional_launch(kernel_info_t *k) {
     m_functional_sim = true;
     m_functional_sim_kernel = k;
   }
-  void finish_functional_sim(kernel_info_t *k)
-  {
+  void finish_functional_sim(kernel_info_t *k) {
     assert(m_functional_sim);
     assert(m_functional_sim_kernel == k);
     m_functional_sim = false;
@@ -739,12 +715,10 @@ public:
   }
 };
 
-class exec_gpgpu_sim : public gpgpu_sim
-{
-public:
+class exec_gpgpu_sim : public gpgpu_sim {
+ public:
   exec_gpgpu_sim(const gpgpu_sim_config &config, gpgpu_context *ctx)
-      : gpgpu_sim(config, ctx)
-  {
+      : gpgpu_sim(config, ctx) {
     createSIMTCluster();
   }
 
