@@ -52,9 +52,11 @@ void cxl_memory_buffer::process_mem_fetch_request_from_gpu() {
         //Page controller job
         page_controller->access_count_up(from_gpu_mem_fetch);
         if(page_controller->check_writeable_migration(from_gpu_mem_fetch)){
+          std::cout << "Write migration\n";
           push_nvlink(i, page_controller->generate_migration_request(from_gpu_mem_fetch, true));
         }
         else if(page_controller->check_readonly_migration(from_gpu_mem_fetch)){
+          std::cout << "Read migration\n";
           push_nvlink(i, page_controller->generate_migration_request(from_gpu_mem_fetch, false));
         }
       }
@@ -74,7 +76,7 @@ void cxl_memory_buffer::process_mem_fetch_request_to_gpu() {
       push_nvlink(to_gpu_link_num, to_gpu_mem_fetch);  
     }
     
-    while(!overflow_buffer.empty()){
+    while(!overflow_buffer.empty() && !ramulators[i]->returnq_full()){
       ramulators[i]->return_queue_push_back(overflow_buffer.front());
       overflow_buffer.pop_front();
     }
