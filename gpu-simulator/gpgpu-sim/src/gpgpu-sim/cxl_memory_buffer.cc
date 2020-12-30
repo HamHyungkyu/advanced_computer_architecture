@@ -50,14 +50,16 @@ void cxl_memory_buffer::process_mem_fetch_request_from_gpu() {
         from_gpu_mem_fetch->set_status(mem_fetch_status::IN_CXL_MEMORY_BUFFER, tot_cycles);
         ramulators[0]->push(from_gpu_mem_fetch);
         //Page controller job
-        page_controller->access_count_up(from_gpu_mem_fetch);
-        if(page_controller->check_writeable_migration(from_gpu_mem_fetch)){
-          std::cout << "Write migration\n";
-          push_nvlink(i, page_controller->generate_migration_request(from_gpu_mem_fetch, true));
-        }
-        else if(page_controller->check_readonly_migration(from_gpu_mem_fetch)){
-          std::cout << "Read migration\n";
-          push_nvlink(i, page_controller->generate_migration_request(from_gpu_mem_fetch, false));
+        if(m_config->use_page_controller){
+          page_controller->access_count_up(from_gpu_mem_fetch);
+          if(page_controller->check_writeable_migration(from_gpu_mem_fetch)){
+            std::cout << "Write migration\n";
+            push_nvlink(i, page_controller->generate_migration_request(from_gpu_mem_fetch, true));
+          }
+          else if(page_controller->check_readonly_migration(from_gpu_mem_fetch)){
+            std::cout << "Read migration\n";
+            push_nvlink(i, page_controller->generate_migration_request(from_gpu_mem_fetch, false));
+          }
         }
       }
     }
@@ -169,5 +171,12 @@ void cxl_memory_buffer_config::parse_to_const(const string& name,
     ramulator_config_file = value;
   } else if (name == "migration_threshold") {
     migration_threshold = atoi(value.c_str());
+  } else if (name == "use_page_controller") {
+    if(value == "true"){
+      use_page_controller = true;
+    }
+    else {
+      use_page_controller = false;
+    }
   }
 }

@@ -4998,9 +4998,9 @@ void simt_core_cluster::icnt_inject_request_packet(class mem_fetch *mf)
   unsigned destination = mf->get_sub_partition_id();
 
   //hyunuk
-  // if (loc != page_location::GPU) {
-  //   destination = m_mem_config->m_n_mem_sub_partition;
-  // }
+  if (loc != page_location::GPU) {
+    destination = m_mem_config->m_n_mem_sub_partition;
+  }
 
   mf->set_status(IN_ICNT_TO_MEM,
                  m_gpu->gpu_sim_cycle + m_gpu->gpu_tot_sim_cycle);

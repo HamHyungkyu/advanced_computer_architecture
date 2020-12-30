@@ -66,15 +66,11 @@ void do_gpu_perf(int num_gpus, trace_config tconfig, gpgpu_context *m_gpgpu_cont
 void do_cxl_perf(cxl_memory_buffer *m_cxl_memory_buffer, int num_gpus);
 gpgpu_sim *gpgpu_trace_sim_init_perf_model(int argc, const char *argv[],
                                            gpgpu_context *m_gpgpu_context,
-<<<<<<< HEAD
-                                           class trace_config *m_config, int num_gpus);
-=======
                                            class trace_config *m_config, int num_gpu);
 trace_kernel_info_t *create_kernel_info( kernel_trace_t* kernel_trace_info,
 		                      gpgpu_context *m_gpgpu_context, class trace_config *config,
 							  trace_parser *parser);
 void cycle_synchronizer(int num_gpus, unsigned long long *local_cycle);
->>>>>>> release
 int parse_num_gpus(int argc, const char **argv);
 cxl_memory_buffer_config *parse_cxl_config(int argc, const char **argv, int num_gpus);
 bool check_scheduling(std::string kernel_name);

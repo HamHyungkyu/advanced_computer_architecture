@@ -47,6 +47,7 @@ class cxl_memory_buffer_config {
   int gpu_cycle_frequency;
   int memory_cycle_frequency;
   int migration_threshold;
+  bool use_page_controller;
   std::string ramulator_config_file;
   
   void parse_to_const(const string &name, const string &value);
