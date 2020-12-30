@@ -35,7 +35,6 @@ else
     export ACCELSIM_CONFIG=release
 fi
 
-
 source $ACCELSIM_ROOT/gpgpu-sim/setup_environment $ACCELSIM_CONFIG
 
 export ACCELSIM_SETUP_ENVIRONMENT_WAS_RUN=1

@@ -15,6 +15,7 @@
 #include <mutex>
 #include <atomic>
 #include <condition_variable>
+
 #include "gpgpu_context.h"
 #include "abstract_hardware_model.h"
 #include "cuda-sim/cuda-sim.h"
@@ -25,6 +26,7 @@
 #include "option_parser.h"
 #include "ISA_Def/trace_opcode.h"
 #include "trace_driven.h"
+#include "../trace-parser/trace_parser.h"
 #include "accelsim_version.h"
 
 /* TO DO:
@@ -47,6 +49,8 @@
  * 5- Get rid off traces intermediate files -
  * change the tracer
  */
+
+
 #define MAX_GPUS 16
 bool finished_gpu_jobs[MAX_GPUS];
 bool wating_gpus[MAX_GPUS];
@@ -57,17 +61,25 @@ std::mutex kernel_mtx;              // mutex for kernel scheduling
 std::condition_variable cycle_sync; // conditoin variable for cycle synchronize
 static int ready_counter = 0;
 
+
+void do_gpu_perf(int num_gpus, trace_config tconfig, gpgpu_context *m_gpgpu_context, gpgpu_sim *m_gpgpu_sim);
+void do_cxl_perf(cxl_memory_buffer *m_cxl_memory_buffer, int num_gpus);
 gpgpu_sim *gpgpu_trace_sim_init_perf_model(int argc, const char *argv[],
                                            gpgpu_context *m_gpgpu_context,
+<<<<<<< HEAD
                                            class trace_config *m_config, int num_gpus);
+=======
+                                           class trace_config *m_config, int num_gpu);
+trace_kernel_info_t *create_kernel_info( kernel_trace_t* kernel_trace_info,
+		                      gpgpu_context *m_gpgpu_context, class trace_config *config,
+							  trace_parser *parser);
+void cycle_synchronizer(int num_gpus, unsigned long long *local_cycle);
+>>>>>>> release
 int parse_num_gpus(int argc, const char **argv);
 cxl_memory_buffer_config *parse_cxl_config(int argc, const char **argv, int num_gpus);
 bool check_scheduling(std::string kernel_name);
 bool check_sync_device_finished(int num_gpus);
 bool check_all_gpu_sim_active(int num_gpus);
-void cycle_synchronizer(int num_gpus, unsigned long long *local_cycle);
-void do_gpu_perf(int num_gpus, trace_config tconfig, gpgpu_context *m_gpgpu_context, gpgpu_sim *m_gpgpu_sim);
-void do_cxl_perf(cxl_memory_buffer *m_cxl_memory_buffer, int num_gpus);
 
 int main(int argc, const char **argv)
 {
@@ -120,8 +132,7 @@ void do_gpu_perf(int num_gpus, trace_config tconfig, gpgpu_context *m_gpgpu_cont
   std::stringstream stream;
   int gpu_num = m_gpgpu_sim->get_gpu_num();
   std::string file_name = tconfig.get_traces_filename();
-  trace_parser tracer(file_name.c_str(), m_gpgpu_sim,
-                      m_gpgpu_context);
+  trace_parser tracer(file_name.c_str(), m_gpgpu_sim);
   tconfig.parse_config();
   std::vector<trace_command> commandlist = tracer.parse_commandlist_file();
   unsigned long long local_cycle = 0;
@@ -138,7 +149,6 @@ void do_gpu_perf(int num_gpus, trace_config tconfig, gpgpu_context *m_gpgpu_cont
     printf("GPU[%d] %d cycle\n", gpu_num, local_cycle);
     //if current gpu is finished
     if (gpu_exit){
-      printf("EXTED %d \n", gpu_num);
       continue;
     }
 
@@ -170,8 +180,8 @@ void do_gpu_perf(int num_gpus, trace_config tconfig, gpgpu_context *m_gpgpu_cont
       {
         if (check_scheduling(commandlist[i].command_string))
         {
-          std::cout << "launching kernel command : " << commandlist[i].command_string << std::endl;
-          kernel_info = tracer.parse_kernel_info(commandlist[i].command_string, &tconfig);
+          kernel_trace_t kernel_trace_info = tracer.parse_kernel_info(commandlist[i].command_string);
+          kernel_info = create_kernel_info(&kernel_trace_info, m_gpgpu_context, &tconfig, &tracer);
           stream << "launching kernel command : " << commandlist[i].command_string << std::endl;
           fprintf(m_gpgpu_sim->get_output_file(), stream.str().c_str());
           stream.clear();
@@ -188,7 +198,6 @@ void do_gpu_perf(int num_gpus, trace_config tconfig, gpgpu_context *m_gpgpu_cont
       else {
         i++;
         continue;
-        // assert(0);
       }
     }
 
@@ -212,7 +221,9 @@ void do_gpu_perf(int num_gpus, trace_config tconfig, gpgpu_context *m_gpgpu_cont
       lck.unlock();
       if (kernel_info)
       {
-        tracer.kernel_finalizer(kernel_info);
+        delete kernel_info->entry();
+        delete kernel_info;
+        tracer.kernel_finalizer();
         m_gpgpu_sim->print_stats();
       }
     }
@@ -234,6 +245,7 @@ void do_gpu_perf(int num_gpus, trace_config tconfig, gpgpu_context *m_gpgpu_cont
   m_gpgpu_sim->update_stats();
   m_gpgpu_context->print_simulation_time();
   printf("GPU FINISHED - %d\n", gpu_num);
+  
   //To avoid deadlock
   std::unique_lock<std::mutex> lck(cycle_mtx);
   cycle_sync.notify_all();
@@ -286,6 +298,25 @@ gpgpu_sim *gpgpu_trace_sim_init_perf_model(int argc, const char *argv[],
   m_gpgpu_context->the_gpgpusim->g_simulation_starttime = time((time_t *)NULL);
 
   return m_gpgpu_context->the_gpgpusim->g_the_gpu;
+}
+
+trace_kernel_info_t *create_kernel_info( kernel_trace_t* kernel_trace_info,
+		                      gpgpu_context *m_gpgpu_context, class trace_config *config,
+							  trace_parser *parser){
+
+  gpgpu_ptx_sim_info info;
+  info.smem = kernel_trace_info->shmem;
+  info.regs = kernel_trace_info->nregs;
+  dim3 gridDim(kernel_trace_info->grid_dim_x, kernel_trace_info->grid_dim_y, kernel_trace_info->grid_dim_z);
+  dim3 blockDim(kernel_trace_info->tb_dim_x, kernel_trace_info->tb_dim_y, kernel_trace_info->tb_dim_z);
+  trace_function_info *function_info =
+      new trace_function_info(info, m_gpgpu_context);
+  function_info->set_name(kernel_trace_info->kernel_name.c_str());
+  trace_kernel_info_t *kernel_info =
+      new trace_kernel_info_t(gridDim, blockDim, function_info,
+    		  parser, config, kernel_trace_info);
+
+  return kernel_info;
 }
 
 void cycle_synchronizer(int num_gpus, unsigned long long *local_cycle)
