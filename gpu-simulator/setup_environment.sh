@@ -37,7 +37,7 @@ fi
 
 if [ ! -d "$ACCELSIM_ROOT/gpgpu-sim" ] ; then
     git clone https://github.com/gpgpu-sim/gpgpu-sim_distribution.git  $ACCELSIM_ROOT/gpgpu-sim
-    git -C $ACCELSIM_ROOT/gpgpu-sim/ checkout v4.0.0
+    git -C $ACCELSIM_ROOT/gpgpu-sim/ checkout v4.0.1
 fi
 
 source $ACCELSIM_ROOT/gpgpu-sim/setup_environment $ACCELSIM_CONFIG
