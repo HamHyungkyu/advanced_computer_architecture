@@ -10,6 +10,7 @@
 #include <string>
 #include <time.h>
 #include <vector>
+#include <queue>
 
 #include "../ISA_Def/kepler_opcode.h"
 #include "../ISA_Def/pascal_opcode.h"
@@ -288,11 +289,6 @@ bool trace_warp_inst_t::parse_from_trace_struct(
   return true;
 }
 
-trace_config::trace_config()
-{
-  gpu_num = 0;
-  output_file = stdout;
-}
 trace_config::trace_config(int gpu_number, FILE *output_file_pointer)
 {
   gpu_num = gpu_number;
@@ -302,7 +298,6 @@ std::string trace_config::get_traces_filename()
 {
   std::string file_name;
   file_name.assign(this->g_traces_filename);
-  file_name.append("GPU_" + std::to_string(gpu_num) + "/kernelslist.g");
   return file_name;
 }
 
@@ -411,10 +406,15 @@ void trace_config::set_latency(unsigned category, unsigned &latency,
 void trace_gpgpu_sim::createSIMTCluster()
 {
   m_cluster = new simt_core_cluster *[m_shader_config->n_simt_clusters];
-  for (unsigned i = 0; i < m_shader_config->n_simt_clusters; i++)
+  for (unsigned i = 0; i < m_shader_config->n_simt_clusters; i++) {
     m_cluster[i] =
         new trace_simt_core_cluster(this, i, m_shader_config, m_memory_config,
                                     m_shader_stats, m_memory_stats);
+
+    //hyunuk
+    m_cluster[i]->m_page_manager = &this->m_page_manager;
+    m_cluster[i]->set_link(m_link);
+  }
 }
 
 void trace_simt_core_cluster::create_shader_core_ctx()
@@ -423,6 +423,7 @@ void trace_simt_core_cluster::create_shader_core_ctx()
   for (unsigned i = 0; i < m_config->n_simt_cores_per_cluster; i++)
   {
     unsigned sid = m_config->cid_to_sid(i, m_cluster_id);
+    
     m_core[i] = new trace_shader_core_ctx(m_gpu, this, sid, m_cluster_id,
                                           m_config, m_mem_config, m_stats);
     m_core_sim_order.push_back(i);
@@ -556,7 +557,7 @@ void trace_shader_core_ctx::checkExecutionStatusAndUpdate(warp_inst_t &inst,
 void trace_shader_core_ctx::func_exec_inst(warp_inst_t &inst)
 {
   // here, we generate memory acessess and set the status if thread (done?)
-  if (inst.is_load() || inst.is_store())
+  if (inst.is_load() || inst.is_store() || inst.is_cxl())
   {
     inst.generate_mem_accesses();
   }

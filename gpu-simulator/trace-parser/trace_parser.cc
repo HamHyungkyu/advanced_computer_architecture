@@ -10,7 +10,6 @@
 #include <string>
 #include <time.h>
 #include <vector>
-
 #include "trace_parser.h"
 
 bool is_number(const std::string &s) {
@@ -217,11 +216,71 @@ bool inst_trace_t::parse_from_string(std::string trace,
   return true;
 }
 
-trace_parser::trace_parser(const char *kernellist_filepath) {
+trace_parser::trace_parser(const char *kernellist_filepath, gpgpu_sim *gpgpu_sim) {
   kernellist_filename = kernellist_filepath;
+  m_gpgpu_sim = gpgpu_sim;
+}
+
+std::queue<schedule_command> trace_parser::parse_schedule_file(std::string kernellist_filename)
+{
+  kernellist_filename = kernellist_filename.append("kernelslist.g");
+
+  std::ifstream ifs;
+  ifs.open(kernellist_filename);
+
+  if (!ifs.is_open())
+  {
+    std::cout << "Unable to open file: " << kernellist_filename << std::endl;
+    exit(1);
+  }
+
+  std::string directory(kernellist_filename);
+  const size_t last_slash_idx = directory.rfind('/');
+  if (std::string::npos != last_slash_idx)
+  {
+    directory = directory.substr(0, last_slash_idx);
+  }
+
+  std::string line, filepath;
+  std::queue<schedule_command> commandlist;
+  while (!ifs.eof())
+  {
+    getline(ifs, line);
+    if (line.empty())
+      continue;
+    else if (line.substr(0, 21) == "cudaDeviceSynchronize")
+    {
+      std::vector<std::string> params;
+      split(line, params, ' ');
+      assert(params.size() == 2);
+      schedule_command command;
+      command.command_string = line;
+      command.m_type = command_type::device_sync;
+      command.gpu_num = atoi(params[1].c_str());
+      commandlist.push(command);
+    }
+    else if (line.substr(0, 6) == "kernel")
+    {
+      schedule_command command;
+      command.m_type = command_type::kernel_launch;
+      command.command_string = line;
+      commandlist.push(command);
+    }
+    else if (line.substr(0, 10) == "MemcpyHtoD")
+    {
+      schedule_command command;
+      command.command_string = line;
+      command.m_type = command_type::cpu_gpu_mem_copy;
+      commandlist.push(command);
+    }
+    // ignore gpu_to_cpu_memory_cpy
+  }
+  ifs.close();
+  return commandlist;
 }
 
 std::vector<trace_command> trace_parser::parse_commandlist_file() {
+  kernellist_filename = kernellist_filename.append("GPU_" + std::to_string(m_gpgpu_sim->get_gpu_num()) + "/kernelslist.g");
   ifs.open(kernellist_filename);
 
   if (!ifs.is_open()) {

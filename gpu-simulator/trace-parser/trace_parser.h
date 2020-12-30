@@ -5,6 +5,7 @@
 #include <stdlib.h>
 #include <string>
 #include <vector>
+#include "gpgpu-sim/gpu-sim.h"
 
 #ifndef TRACE_PARSER_H
 #define TRACE_PARSER_H
@@ -17,6 +18,7 @@ enum command_type {
   kernel_launch = 1,
   cpu_gpu_mem_copy,
   gpu_cpu_mem_copy,
+  device_sync
 };
 
 enum address_space { GLOBAL_MEM = 1, SHARED_MEM, LOCAL_MEM, TEX_MEM };
@@ -30,6 +32,13 @@ enum address_scope {
 enum address_format { list_all = 0, base_stride = 1, base_delta = 2 };
 
 struct trace_command {
+  std::string command_string;
+  command_type m_type;
+};
+
+struct schedule_command
+{
+  int gpu_num;
   std::string command_string;
   command_type m_type;
 };
@@ -94,7 +103,9 @@ struct kernel_trace_t {
 
 class trace_parser {
 public:
-  trace_parser(const char *kernellist_filepath);
+  trace_parser(const char *kernellist_filepath, gpgpu_sim * m_gpgpu_sim);
+ 
+  static std::queue<schedule_command> parse_schedule_file(std::string kernellist_filename);
 
   std::vector<trace_command> parse_commandlist_file();
 
@@ -112,6 +123,7 @@ public:
 private:
   std::string kernellist_filename;
   std::ifstream ifs;
+  gpgpu_sim *m_gpgpu_sim;
 };
 
 #endif
