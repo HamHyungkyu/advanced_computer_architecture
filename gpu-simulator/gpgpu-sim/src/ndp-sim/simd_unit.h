@@ -1,8 +1,7 @@
 #include "simd_controller.h"
-#include "simd_alu.h"
 
 enum simd_op_type {
-  ADD, SUB, MUL, DIV, MAC, SPU
+  ADD, SUB, MUL, DIV, MAC, SPU, MAX
 };
 
 class simd_unit {
@@ -19,3 +18,11 @@ class simd_unit {
     simd_alu alu;
 };
 
+class simd_alu {
+  public:
+    void init();
+    void cycle();
+  private:
+    int simd_alu_width;
+    int op_latencies[simd_op_type::MAX];
+};
