@@ -1,3 +1,6 @@
+#ifndef SIMD_UNIT
+#define SIMD_UNIT
+
 #include "simd_controller.h"
 
 enum simd_op_type {
@@ -26,3 +29,5 @@ class simd_alu {
     int simd_alu_width;
     int op_latencies[simd_op_type::MAX];
 };
+
+#endif

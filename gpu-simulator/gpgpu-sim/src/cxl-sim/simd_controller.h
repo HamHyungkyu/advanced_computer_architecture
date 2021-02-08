@@ -1,3 +1,6 @@
+#ifndef SIMD_CONTROLLER
+#define SIND_CONTROLLER
+
 class simd_controller {
   public:
     void init();
@@ -8,3 +11,7 @@ class simd_controller {
     float write_high_watermark;
     float write_low_watermark;
 };
+
+struct vector
+
+#endif

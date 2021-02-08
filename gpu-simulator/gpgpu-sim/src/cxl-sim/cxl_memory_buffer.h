@@ -3,9 +3,9 @@
 #include <string>
 #include <deque>
 #include "../ramulator/Ramulator.h"
-#include "NVLink.h"
+#include "../gpgpu-sim/NVLink.h"
 #include "cxl_page_controller.h"
-#include "delayqueue.h"
+#include "../gpgpu-sim/delayqueue.h"
 class cxl_memory_buffer_config;
 
 class cxl_memory_buffer {
