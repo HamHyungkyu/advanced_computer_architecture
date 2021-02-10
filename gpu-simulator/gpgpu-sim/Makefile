@@ -57,7 +57,7 @@ endif
 
 $(shell mkdir -p $(SIM_OBJ_FILES_DIR)/libcuda && echo "const char *g_gpgpusim_build_string=\"$(GPGPUSIM_BUILD)\";" > $(SIM_OBJ_FILES_DIR)/detailed_version)
 
-LIBS = cuda-sim gpgpu-sim_uarch $(INTERSIM) gpgpusimlib ramulator
+LIBS = cuda-sim gpgpu-sim_uarch $(INTERSIM) gpgpusimlib ramulator cxl-sim
 
 
 TARGETS =
@@ -148,6 +148,7 @@ $(SIM_LIB_DIR)/libcudart.so: makedirs $(LIBS) cudalib
 			$(SIM_OBJ_FILES_DIR)/cuda-sim/*.o \
 			$(SIM_OBJ_FILES_DIR)/cuda-sim/decuda_pred_table/*.o \
 			$(SIM_OBJ_FILES_DIR)/gpgpu-sim/*.o \
+			$(SIM_OBJ_FILES_DIR)/cxl-sim/*.o \
 			$(SIM_OBJ_FILES_DIR)/$(INTERSIM)/*.o \
 			$(SIM_OBJ_FILES_DIR)/ramulator/*.o \
 			$(SIM_OBJ_FILES_DIR)/*.o -lm -lz -lGL -pthread \
@@ -176,6 +177,7 @@ $(SIM_LIB_DIR)/libcudart.dylib: makedirs $(LIBS) cudalib
 			$(SIM_OBJ_FILES_DIR)/cuda-sim/*.o \
 			$(SIM_OBJ_FILES_DIR)/cuda-sim/decuda_pred_table/*.o \
 			$(SIM_OBJ_FILES_DIR)/gpgpu-sim/*.o \
+			$(SIM_OBJ_FILES_DIR)/cxl-sim/*.o \
 			$(SIM_OBJ_FILES_DIR)/$(INTERSIM)/*.o  \
 			$(SIM_OBJ_FILES_DIR)/ramulator/*.o \
 			$(SIM_OBJ_FILES_DIR)/*.o -lm -lz -pthread \
@@ -188,6 +190,7 @@ $(SIM_LIB_DIR)/libOpenCL.so: makedirs $(LIBS) opencllib
 			$(SIM_OBJ_FILES_DIR)/cuda-sim/*.o \
 			$(SIM_OBJ_FILES_DIR)/cuda-sim/decuda_pred_table/*.o \
 			$(SIM_OBJ_FILES_DIR)/gpgpu-sim/*.o \
+			$(SIM_OBJ_FILES_DIR)/cxl-sim/*.o \
 			$(SIM_OBJ_FILES_DIR)/$(INTERSIM)/*.o \
 			$(SIM_OBJ_FILES_DIR)/ramulator/*.o \
 			$(SIM_OBJ_FILES_DIR)/*.o -lm -lz -lGL -pthread \
@@ -224,6 +227,10 @@ ramulator: makedirs cuda-sim gpgpu-sim_uarch
 	$(MAKE) -C ./src/ramulator/ depend
 	$(MAKE) -C ./src/ramulator/
 
+cxl-sim: makedirs cuda-sim gpgpu-sim_uarch
+	$(MAKE) -C ./src/cxl-sim/ depend
+	$(MAKE) -C ./src/cxl-sim/
+
 $(INTERSIM): makedirs cuda-sim gpgpu-sim_uarch
 	$(MAKE) "CREATE_LIBRARY=1" "DEBUG=$(DEBUG)" -C ./src/$(INTERSIM)
 
@@ -246,6 +253,7 @@ makedirs:
 	if [ ! -d $(SIM_OBJ_FILES_DIR)/cuda-sim ]; then mkdir -p $(SIM_OBJ_FILES_DIR)/cuda-sim; fi;
 	if [ ! -d $(SIM_OBJ_FILES_DIR)/cuda-sim/decuda_pred_table ]; then mkdir -p $(SIM_OBJ_FILES_DIR)/cuda-sim/decuda_pred_table; fi;
 	if [ ! -d $(SIM_OBJ_FILES_DIR)/gpgpu-sim ]; then mkdir -p $(SIM_OBJ_FILES_DIR)/gpgpu-sim; fi;
+	if [ ! -d $(SIM_OBJ_FILES_DIR)/cxl-sim ]; then mkdir -p $(SIM_OBJ_FILES_DIR)/cxl-sim; fi;
 	if [ ! -d $(SIM_OBJ_FILES_DIR)/ramulator ]; then mkdir -p $(SIM_OBJ_FILES_DIR)/ramulator; fi;
 	if [ ! -d $(SIM_OBJ_FILES_DIR)/libopencl ]; then mkdir -p $(SIM_OBJ_FILES_DIR)/libopencl; fi;
 	if [ ! -d $(SIM_OBJ_FILES_DIR)/libopencl/bin ]; then mkdir -p $(SIM_OBJ_FILES_DIR)/libopencl/bin; fi;

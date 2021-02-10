@@ -69,6 +69,8 @@
       "typeindex": "cpp",
       "typeinfo": "cpp",
       "valarray": "cpp",
-      "*.tup": "cpp"
+      "*.tup": "cpp",
+      "optional": "cpp",
+      "string_view": "cpp"
    }
 }

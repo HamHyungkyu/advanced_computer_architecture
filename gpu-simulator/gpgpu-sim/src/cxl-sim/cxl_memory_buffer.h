@@ -2,9 +2,9 @@
 #define CXL_MEMORY_BUFFER
 #include <string>
 #include <deque>
+#include "cxl_page_controller.h"
 #include "../ramulator/Ramulator.h"
 #include "../gpgpu-sim/NVLink.h"
-#include "cxl_page_controller.h"
 #include "../gpgpu-sim/delayqueue.h"
 class cxl_memory_buffer_config;
 
